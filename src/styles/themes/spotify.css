@@ -1,0 +1,96 @@
+/*
+ * Preset "Spotify" do Theme Builder do HeroUI v3.
+ * Fonte: heroui-inc/heroui (branch v3) → apps/docs/src/styles/theme-presets.css
+ *   lightness 0.7697 · chroma 0.2124 · hue 148.67 · font Inter · radius medium · formRadius extra-small
+ *
+ * Ativação: <html data-design-theme="spotify" class="light|dark">.
+ * O modo claro/escuro vem da classe (next-themes), independente do preset:
+ * trocar a identidade da marca no futuro = trocar este arquivo + o atributo no layout.
+ */
+@layer base {
+  /* Spotify — claro */
+  [data-design-theme="spotify"]:not(.dark):not([data-theme="dark"]) {
+    --background: oklch(97.02% 0.002 148.69);
+    --border: oklch(90% 0.002 148.69);
+    --default: oklch(94% 0.002 148.69);
+    --default-foreground: oklch(21.03% 0.0059 148.69);
+    --field-background: oklch(100% 0.001 148.69);
+    --field-border: oklch(90% 0.002 148.69);
+    --field-foreground: oklch(21.03% 0.002 148.69);
+    --field-placeholder: oklch(55.17% 0.004 148.69);
+    --foreground: oklch(21.03% 0.002 148.69);
+    --link: oklch(21.03% 0.002 148.69);
+    --muted: oklch(55.17% 0.004 148.69);
+    --overlay: oklch(100% 0.0006 148.69);
+    --overlay-foreground: oklch(21.03% 0.002 148.69);
+    --scrollbar: oklch(87.1% 0.002 148.69);
+    --segment: oklch(100% 0.002 148.69);
+    --segment-foreground: oklch(21.03% 0.002 148.69);
+    --separator: oklch(92% 0.002 148.69);
+    --surface: oklch(100% 0.001 148.69);
+    --surface-foreground: oklch(21.03% 0.002 148.69);
+    --surface-secondary: oklch(95.24% 0.003 148.69);
+    --surface-secondary-foreground: oklch(21.03% 0.002 148.69);
+    --surface-tertiary: oklch(93.73% 0.003 148.69);
+    --surface-tertiary-foreground: oklch(21.03% 0.002 148.69);
+    --accent: oklch(76.97% 0.2123 148.69);
+    --accent-foreground: oklch(15% 0.03 148.69);
+    --focus: oklch(76.97% 0.2123 148.69);
+    --success: oklch(0.6072 0.1647 149.02);
+    --success-foreground: oklch(99.11% 0 0);
+    --warning: oklch(0.6972 0.1687 54.22);
+    --warning-foreground: oklch(15% 0.05 54.22);
+    --danger: oklch(0.5509 0.2166 25.29);
+    --danger-foreground: oklch(99.11% 0 0);
+    --field-radius: 0.125rem;
+    --chart-1: oklch(from var(--accent) calc(l - 0.24) c h);
+    --chart-2: oklch(from var(--accent) calc(l - 0.12) c h);
+    --chart-3: var(--accent);
+    --chart-4: oklch(from var(--accent) calc(l + 0.12) c h);
+    --chart-5: oklch(from var(--accent) calc(l + 0.24) c h);
+  }
+
+  /* Spotify — escuro */
+  [data-design-theme="spotify"].dark,
+  [data-design-theme="spotify"][data-theme="dark"] {
+    color-scheme: dark;
+    --background: oklch(12% 0.002 148.69);
+    --border: oklch(28% 0.002 148.69);
+    --default: oklch(27.4% 0.002 148.69);
+    --default-foreground: oklch(99.11% 0 0);
+    --field-background: oklch(21.03% 0.004 148.69);
+    --field-border: oklch(28% 0.002 148.69);
+    --field-foreground: oklch(99.11% 0.002 148.69);
+    --field-placeholder: oklch(70.5% 0.004 148.69);
+    --foreground: oklch(99.11% 0.002 148.69);
+    --link: oklch(99.11% 0.002 148.69);
+    --muted: oklch(70.5% 0.004 148.69);
+    --overlay: oklch(21.03% 0.004 148.69);
+    --overlay-foreground: oklch(99.11% 0.002 148.69);
+    --scrollbar: oklch(70.5% 0.002 148.69);
+    --segment: oklch(39.64% 0.002 148.69);
+    --segment-foreground: oklch(99.11% 0.002 148.69);
+    --separator: oklch(25% 0.002 148.69);
+    --surface: oklch(21.03% 0.004 148.69);
+    --surface-foreground: oklch(99.11% 0.002 148.69);
+    --surface-secondary: oklch(25.7% 0.003 148.69);
+    --surface-secondary-foreground: oklch(99.11% 0.002 148.69);
+    --surface-tertiary: oklch(27.21% 0.003 148.69);
+    --surface-tertiary-foreground: oklch(99.11% 0.002 148.69);
+    --accent: oklch(76.97% 0.2123 148.69);
+    --accent-foreground: oklch(15% 0.03 148.69);
+    --focus: oklch(76.97% 0.2123 148.69);
+    --success: oklch(0.7697 0.2124 148.67);
+    --success-foreground: oklch(15% 0.05 148.67);
+    --warning: oklch(0.7921 0.1626 67.42);
+    --warning-foreground: oklch(15% 0.0488 67.42);
+    --danger: oklch(0.5931 0.2338 25.42);
+    --danger-foreground: oklch(99.11% 0 0);
+    --field-radius: 0.125rem;
+    --chart-1: oklch(from var(--accent) calc(l - 0.24) c h);
+    --chart-2: oklch(from var(--accent) calc(l - 0.12) c h);
+    --chart-3: var(--accent);
+    --chart-4: oklch(from var(--accent) calc(l + 0.12) c h);
+    --chart-5: oklch(from var(--accent) calc(l + 0.24) c h);
+  }
+}
