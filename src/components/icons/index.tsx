@@ -3,12 +3,31 @@ import type { SVGProps } from "react";
 // Ícones padrão do projeto: @gravity-ui/icons (o set usado pelo HeroUI v3).
 // Aqui ficam só os que o Gravity não tem, no mesmo estilo (16x16, currentColor).
 export {
+  ArrowLeft,
+  ArrowRightFromSquare,
+  ArrowRightToSquare,
+  ArrowUpArrowDown,
+  Bars,
   Car,
+  ChevronLeft,
+  ChevronRight,
+  CircleCheck,
+  Envelope,
+  Eye,
+  EyeSlash,
   GeoPin,
   House,
   LayoutCellsLarge,
+  Lock,
   Magnifier,
+  MapPin,
+  Person,
+  Persons,
+  Picture,
+  Sliders,
   StarFill,
+  Tags,
+  Xmark,
 } from "@gravity-ui/icons";
 
 type IconProps = SVGProps<SVGSVGElement>;

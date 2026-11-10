@@ -1,32 +1,39 @@
 import { Card, Chip, Separator } from "@heroui/react";
-import type { ComponentProps, ReactNode } from "react";
-import { Bath, Bed, Car, GeoPin, House, LayoutCellsLarge, StarFill } from "@/components/icons";
-import { formatArea, formatCurrency } from "@/lib/format";
+import Link from "next/link";
+import { GeoPin, Picture, StarFill } from "@/components/icons";
 import type { Imovel } from "../types";
 import { formatEndereco, parseCaracteristicas } from "../utils";
+import { ImovelAtributos } from "./imovel-atributos";
+import { ImovelFoto, ImovelFotoPlaceholder } from "./imovel-midia";
+import { Preco } from "./preco";
+import { StatusChip } from "./status-chip";
 
-type ChipColor = ComponentProps<typeof Chip>["color"];
-
-const STATUS_COLOR: Record<string, ChipColor> = {
-  disponivel: "success",
-  disponível: "success",
-  reservado: "warning",
-  vendido: "danger",
-  alugado: "danger",
-};
-
-function statusColor(status: string): ChipColor {
-  return STATUS_COLOR[status.toLowerCase()] ?? "default";
+interface ImovelCardProps {
+  imovel: Imovel;
+  /** link do detalhe (muda entre site e áreas logadas) */
+  href: string;
+  priority?: boolean;
 }
 
-export function ImovelCard({ imovel }: { imovel: Imovel }) {
+export function ImovelCard({ imovel, href, priority }: ImovelCardProps) {
   const caracteristicas = parseCaracteristicas(imovel);
+  const [capa] = imovel.fotos;
 
   return (
-    <Card className="h-full overflow-hidden p-0">
-      {/* Mídia: a API ainda não envia fotos; placeholder com o accent do tema */}
-      <div className="relative flex aspect-[16/10] items-center justify-center bg-gradient-to-br from-accent/25 via-accent/10 to-surface-secondary">
-        <House className="size-12 text-accent" aria-hidden />
+    <Card className="group relative h-full overflow-hidden p-0 transition-shadow focus-within:ring-2 focus-within:ring-focus hover:shadow-md">
+      <div className="relative aspect-[16/10] overflow-hidden bg-surface-secondary">
+        {capa ? (
+          <ImovelFoto
+            src={capa}
+            alt={imovel.titulo}
+            priority={priority}
+            sizes="(min-width: 1536px) 25vw, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+            className="transition-transform duration-300 group-hover:scale-105"
+          />
+        ) : (
+          <ImovelFotoPlaceholder />
+        )}
+
         <div className="absolute inset-x-3 top-3 flex items-start justify-between gap-2">
           <div className="flex flex-wrap gap-1.5">
             {imovel.tipoImovel && (
@@ -45,14 +52,27 @@ export function ImovelCard({ imovel }: { imovel: Imovel }) {
             </Chip>
           )}
         </div>
+
+        {imovel.fotos.length > 1 && (
+          <Chip size="sm" variant="secondary" className="absolute bottom-3 right-3">
+            <Picture className="size-3" aria-hidden />
+            <Chip.Label>{imovel.fotos.length} fotos</Chip.Label>
+          </Chip>
+        )}
       </div>
 
       <Card.Header className="gap-1 px-4 pt-1">
         <div className="flex items-start justify-between gap-3">
-          <Card.Title className="line-clamp-1 text-base">{imovel.titulo}</Card.Title>
-          <Chip size="sm" variant="soft" color={statusColor(imovel.status)} className="shrink-0">
-            {imovel.status}
-          </Chip>
+          <Card.Title className="line-clamp-1 text-base">
+            {/* Link "esticado": o card inteiro é clicável, mas só o título é o link */}
+            <Link
+              href={href}
+              className="outline-none after:absolute after:inset-0 after:content-['']"
+            >
+              {imovel.titulo}
+            </Link>
+          </Card.Title>
+          <StatusChip status={imovel.status} className="shrink-0" />
         </div>
         <Card.Description className="flex items-center gap-1">
           <GeoPin className="size-3.5 shrink-0" aria-hidden />
@@ -65,23 +85,7 @@ export function ImovelCard({ imovel }: { imovel: Imovel }) {
           <p className="line-clamp-2 text-sm text-muted">{imovel.descricao}</p>
         )}
 
-        <ul className="flex flex-wrap gap-x-4 gap-y-1.5 text-sm text-foreground">
-          {imovel.dormitorios != null && (
-            <Atributo icon={<Bed />} label={`${imovel.dormitorios} dorm.`} />
-          )}
-          {imovel.banheiros != null && (
-            <Atributo icon={<Bath />} label={`${imovel.banheiros} banh.`} />
-          )}
-          {imovel.garagem != null && (
-            <Atributo icon={<Car />} label={`${imovel.garagem} vagas`} />
-          )}
-          {(imovel.areaConstruida ?? imovel.areaTotal) != null && (
-            <Atributo
-              icon={<LayoutCellsLarge />}
-              label={formatArea((imovel.areaConstruida ?? imovel.areaTotal)!)}
-            />
-          )}
-        </ul>
+        <ImovelAtributos imovel={imovel} compacto />
 
         {caracteristicas.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
@@ -106,38 +110,5 @@ export function ImovelCard({ imovel }: { imovel: Imovel }) {
         <Preco rotulo="Aluguel" valor={imovel.precoAluguel} sufixo="/mês" alinhar="end" />
       </Card.Footer>
     </Card>
-  );
-}
-
-function Atributo({ icon, label }: { icon: ReactNode; label: string }) {
-  return (
-    <li className="flex items-center gap-1.5 [&>svg]:size-4 [&>svg]:text-muted">
-      {icon}
-      <span>{label}</span>
-    </li>
-  );
-}
-
-function Preco({
-  rotulo,
-  valor,
-  sufixo,
-  alinhar = "start",
-}: {
-  rotulo: string;
-  valor: number | null;
-  sufixo?: string;
-  alinhar?: "start" | "end";
-}) {
-  if (valor == null) return <span />;
-
-  return (
-    <div className={alinhar === "end" ? "text-right" : undefined}>
-      <p className="text-xs text-muted">{rotulo}</p>
-      <p className="text-lg font-semibold leading-tight">
-        {formatCurrency(valor)}
-        {sufixo && <span className="text-sm font-normal text-muted">{sufixo}</span>}
-      </p>
-    </div>
   );
 }

@@ -8,13 +8,28 @@ export class ApiError extends Error {
   constructor(
     message: string,
     public readonly status?: number,
+    /** Corpo da resposta de erro (a API manda text/plain em alguns casos, ex.: login 401). */
+    public readonly body?: string,
   ) {
     super(message);
     this.name = "ApiError";
   }
 }
 
-export async function apiGet<T>(path: string, init?: RequestInit): Promise<T> {
+/** Metadados de página da API (`page` começa em 0). */
+export interface PageMetadata {
+  size: number;
+  number: number;
+  totalElements: number;
+  totalPages: number;
+}
+
+export interface Page<T> {
+  content: T[];
+  page: PageMetadata;
+}
+
+async function request(path: string, init?: RequestInit): Promise<Response> {
   let res: Response;
   try {
     res = await fetch(`${API_URL}${path}`, {
@@ -26,8 +41,38 @@ export async function apiGet<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   if (!res.ok) {
-    throw new ApiError(`A API respondeu com erro ${res.status}.`, res.status);
+    const body = await res.text().catch(() => "");
+    throw new ApiError(`A API respondeu com erro ${res.status}.`, res.status, body || undefined);
   }
+  return res;
+}
 
+/** Header de autenticação para as rotas protegidas. */
+export function bearer(token: string): HeadersInit {
+  return { Authorization: `Bearer ${token}` };
+}
+
+export async function apiPostJson<T>(path: string, body: unknown, init?: RequestInit): Promise<T> {
+  const res = await request(path, {
+    ...init,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...init?.headers },
+    body: JSON.stringify(body),
+  });
   return res.json() as Promise<T>;
+}
+
+export async function apiGet<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await request(path, init);
+  return res.json() as Promise<T>;
+}
+
+/** POST com corpo JSON. A API responde sem corpo nas mutações, então não há retorno. */
+export async function apiPost(path: string, body: unknown, init?: RequestInit): Promise<void> {
+  await request(path, {
+    ...init,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...init?.headers },
+    body: JSON.stringify(body),
+  });
 }

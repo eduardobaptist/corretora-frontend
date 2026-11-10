@@ -10,6 +10,25 @@
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
 
+/* Distância do topo para elementos sticky. O site tem header fixo; as áreas logadas não. */
+:root {
+  --topo-fixo: 6rem;
+}
+
+/*
+ * Container das páginas públicas: largura máxima 96rem (1536px) e respiro lateral
+ * pequeno (16px → 24px a partir de sm). Use em vez de max-w-* + px-* soltos.
+ */
+@utility container-site {
+  margin-inline: auto;
+  width: 100%;
+  max-width: 96rem;
+  padding-inline: 1rem;
+  @variant sm {
+    padding-inline: 1.5rem;
+  }
+}
+
 /*
  * Customizações de componentes HeroUI vão aqui, via classes BEM, dentro de
  * @layer components. Ex.: .card { ... }, .button--primary { ... }

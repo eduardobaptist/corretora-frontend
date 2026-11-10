@@ -34,6 +34,9 @@ src/
 
 ## Design system: HeroUI v3
 
+**Padrões visuais, receitas de componentes e estados de tela: [`DESIGN.md`](DESIGN.md).**
+Siga-o em toda tela nova.
+
 - `@heroui/react` + `@heroui/styles` v3 (Tailwind v4, componentes compostos tipo
   `Card.Header`, `SearchField.Input`, `Alert.Title`). **Não é a API do HeroUI v2/NextUI**:
   não existe `HeroUIProvider` nem `tailwind.config`. Na dúvida, veja os `.d.ts` em
@@ -63,17 +66,86 @@ src/
 
 ## API (Spring, `localhost:8080`)
 
-- `GET /imoveis` → `Imovel[]`. Tipos em `src/features/imoveis/types.ts`; campos numéricos
-  e relações podem vir `null`. `caracteristicas` é uma string separada por vírgula.
-- A busca da home é **local** (`filtrarImoveis` em `features/imoveis/utils.ts`, sem acento e
-  sem diferenciar maiúsculas) porque a API ainda não filtra. Quando a API ganhar filtro,
-  mover para query param e remover o filtro local.
+**Contrato completo: [`docs/openapi.yaml`](docs/openapi.yaml).** É a referência para toda
+feature nova (endpoints, schemas, regras de acesso). Leia antes de criar tipos ou chamadas.
+Pontos que pegam de surpresa:
+
+- Auth: `POST /auth/login` → `{ token }` (JWT, 120 min, sem refresh). Rotas protegidas usam
+  `Authorization: Bearer`. O payload traz `id`, `nome`, `roles`. 401/403 vêm com corpo vazio.
+- Público: `POST /auth/login`, `GET /imoveis`, `GET /imoveis/{id}`, `POST /imoveis/sabermais/{id}`
+  e `GET /uploads/**`. `/bairros` e `/tipos-imoveis` exigem login; escrita em imóveis, `/fotos`
+  e `/user` exigem ADMIN.
+- Listagens são **paginadas**: `page` (0-based), `size` (máx. 100), `sort=campo,dir` (repetível;
+  relação com ponto: `bairro.nome`). Resposta `{ content, page: { size, number, totalElements,
+  totalPages } }` (`Page<T>` em `src/lib/api.ts`). `sort` com campo inexistente → 500.
+- `fotos` em `GET /imoveis` e `GET /imoveis/{id}`: array de URLs absolutas e públicas (capa
+  primeiro), direto no `<img>`.
+- `POST` de imóvel/bairro/tipo → `201` **sem corpo** (id só no header `Location`).
+  `PUT` → `204` e **substitui tudo** (campo omitido vira `null`). Relações vão como `{ "id": n }`.
+- `GET /bairros/{id}` e `/tipos-imoveis/{id}` inexistente → `200` com corpo vazio (não 404).
+- `GET /user/` exige a barra final; `POST /user` é sem barra.
+- CORS não configurado no Spring: mais um motivo para chamar a API só do servidor.
+
+### Imóveis no front (`src/features/imoveis/`)
+
+- `api.ts` (server-only): `listarImoveis` (página da API), `buscarImovel` (`null` se 404,
+  deduplicado com `cache()`), `enviarSaberMais`, e `consultarVitrine`, que decide a estratégia:
+  - **sem filtro** → paginação e ordenação direto na API;
+  - **com filtro** (ou ordenação asc por campo que pode ser nulo, que o MySQL põe no topo) →
+    `listarTodosImoveis` (varre as páginas de 100, `'use cache'` + `cacheLife("minutes")`),
+    filtra/ordena/pagina localmente (`utils.ts`) e devolve no mesmo formato `Page`.
+  A API **ainda não filtra**: quando filtrar, troque o modo local por query params e apague
+  `filtrarImoveis`/`ordenarImoveis`/`listarTodosImoveis`.
+- `normalizar` (em `api.ts`) trata preço `0` como `null` (cadastros usam 0 para "não se aplica").
+- Opções dos filtros (tipo, cidade, bairro) saem dos próprios imóveis (`opcoesDeFiltro`),
+  porque `/bairros` e `/tipos-imoveis` exigem login.
+- `vitrine-params.ts`: estado da vitrine **na URL** (`q, negocio, tipo, cidade, bairro, dorm,
+  min, max, ordem, pagina` 1-based). `parseVitrineParams`/`toSearchParams` são isomórficos.
+- `actions.ts`: Server Action `enviarContato` (valida tudo; a API dá 500 com campo nulo).
+
+### Autenticação (`src/features/auth/`)
+
+- Sem auth própria: a sessão é o **JWT da API** num cookie httpOnly `sessao` (`session.ts`),
+  com `maxAge` = `exp` do token (não há refresh). O payload é só decodificado (nome, papel,
+  validade); quem autoriza é a API.
+- `actions.ts`: `entrar` (valida `LoginRequest`, chama `POST /auth/login`, grava o cookie e
+  redireciona para `?next=` seguro ou para a área do papel) e `sair` (apaga o cookie → `/`).
+  401 do login mostra o texto da API ("E-mail ou senha inválidos.").
+- `api.ts`: `usuarioAtual()` confirma a sessão em `GET /auth/me` (com `bearer(token)` de
+  `lib/api.ts`). Sem sessão → `/login?next=`; 401/404 → `/login?motivo=expirado&next=`.
+  Use-o (ou `lerSessao()`) só **dentro de `<Suspense>`**: lê cookie.
+- Chamadas autenticadas futuras: `apiGet(path, { headers: bearer(sessao.token) })` e trate
+  401 do mesmo jeito (redirecionar para o login).
+- **Acesso por papel**: ADMIN só em `/admin/**`, BASIC só em `/cliente/**` (regra única em
+  `utils.ts`: `areaDaRota`/`podeAcessar`). Duas camadas:
+  1. `src/proxy.ts` (otimista, só o cookie via `token.ts`): sem sessão → `/login?next=`; papel
+     errado → a própria área. Roda antes de renderizar, sem "piscar" a tela.
+  2. `exigirArea(area)` (`api.ts`, definitiva, papel vindo de `GET /auth/me`): usada pelo bloco de
+     perfil do `AreaShell`. **Toda página ou Server Action de área que buscar/alterar dados deve
+     chamar `exigirArea` antes** (o proxy não é autorização; a API ainda responde 403).
+  O login só respeita `?next=` se o papel puder abrir a rota.
+- Cadastro público não existe na API (`POST /user` é ADMIN): sem tela de cadastro por ora.
 
 ## Telas
 
-- `/`: título, campo de busca grande (SearchField arredondado) e grid de `ImovelCard`.
-  Estados: skeleton (Suspense), erro (Alert danger quando a API está fora), vazio (EmptyState).
-  As fotos ainda não vêm da API; o card usa um placeholder com gradiente do accent.
+- `/`: vitrine. Título, busca (debounce, `?q=`), filtros (lateral no desktop, recolhível no
+  celular), ordenação, grid de `ImovelCard` (foto de capa ou placeholder) e paginação HeroUI.
+  Controles client chamam `useVitrine().navegar(patch)` → `router.push` em transição; o Server
+  Component relê `searchParams`. Estados: skeleton, erro, vazio (com/sem filtro, página inexistente).
+- `/imoveis/[id]`: breadcrumbs, galeria (setas, miniaturas, teclado), atributos, descrição,
+  características, detalhes e card lateral fixo com preço + formulário "saber mais".
+  Id inexistente → `notFound()` (`src/app/not-found.tsx`). Metadata com título e foto.
+- `/login`: card com e-mail e senha (mostrar/ocultar), erros por campo e Alert para credenciais
+  inválidas, API fora ou sessão expirada.
+- **A vitrine também existe dentro das áreas**: `/admin/vitrine` e `/cliente/vitrine` (+ `/[id]`).
+  As rotas são finas e montam `VitrinePagina`/`ImovelPagina` (`features/imoveis/components/
+  paginas.tsx`) com `base` = caminho da listagem; `hrefImovel(base, id)` gera o link do detalhe
+  (site: `/imoveis/[id]`; áreas: `${base}/[id]`), e breadcrumbs/voltar usam o mesmo `base`.
+- `/admin/*` (Geral: Painel, Vitrine · Cadastros: Imóveis, Bairros, Tipos de imóvel, Usuários) e
+  `/cliente/*` (Início, Vitrine, Meu perfil): `AreaShell` = sidebar com as opções do papel + bloco de perfil (avatar, nome, e-mail e
+  botão Sair; o chip "Admin" fica no topo, só na área admin). Páginas ainda vazias ("Em breve"), `noindex`.
+- Rotas: `app/(site)/` tem o `SiteHeader` (logo + "Entrar" ou avatar com atalho para a área);
+  `app/admin` e `app/cliente` usam o `AreaShell`, sem o header do site.
 
 ## Convenções
 
