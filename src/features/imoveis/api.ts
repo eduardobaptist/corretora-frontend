@@ -1,7 +1,14 @@
 import "server-only";
-import { cacheLife } from "next/cache";
+import { cacheLife, cacheTag } from "next/cache";
 import { cache } from "react";
-import { ApiError, apiGet, apiPost, type Page } from "@/lib/api";
+import {
+  ApiError,
+  apiGet,
+  apiPost,
+  listarTodasPaginas,
+  queryPagina,
+  type Page,
+} from "@/lib/api";
 import type { Imovel, ImovelSaberMais } from "./types";
 import { filtrarImoveis, opcoesDeFiltro, ordenarImoveis, type OpcoesFiltro } from "./utils";
 import {
@@ -13,7 +20,8 @@ import {
   type VitrineParams,
 } from "./vitrine-params";
 
-const TAMANHO_MAXIMO_API = 100;
+/** Tag do cache da lista completa: as Server Actions do admin chamam `updateTag(TAG_IMOVEIS)`. */
+export const TAG_IMOVEIS = "imoveis";
 const CAMPOS_NULOS = new Set<CampoOrdenacao>(["precoVenda", "precoAluguel", "areaConstruida"]);
 
 interface ListarImoveisQuery {
@@ -34,8 +42,11 @@ function normalizar(imovel: Imovel): Imovel {
 }
 
 export async function listarImoveis({ page, size, ordenacao = [] }: ListarImoveisQuery) {
-  const qs = new URLSearchParams({ page: String(page), size: String(size) });
-  for (const [campo, dir] of ordenacao) qs.append("sort", `${campo},${dir}`);
+  const qs = queryPagina(
+    page,
+    size,
+    ordenacao.map(([campo, dir]) => `${campo},${dir}`),
+  );
   const resp = await apiGet<Page<Imovel>>(`/imoveis?${qs}`);
   return { ...resp, content: resp.content.map(normalizar) };
 }
@@ -47,13 +58,9 @@ export async function listarImoveis({ page, size, ordenacao = [] }: ListarImovei
 export async function listarTodosImoveis(): Promise<Imovel[]> {
   "use cache";
   cacheLife("minutes");
+  cacheTag(TAG_IMOVEIS);
 
-  const todos: Imovel[] = [];
-  for (let page = 0; ; page++) {
-    const resp = await listarImoveis({ page, size: TAMANHO_MAXIMO_API });
-    todos.push(...resp.content);
-    if (page >= resp.page.totalPages - 1) return todos;
-  }
+  return listarTodasPaginas((page, size) => listarImoveis({ page, size }));
 }
 
 export interface ResultadoVitrine {
@@ -105,7 +112,8 @@ export const buscarImovel = cache(async (id: string): Promise<Imovel | null> => 
   try {
     return normalizar(await apiGet<Imovel>(`/imoveis/${id}`));
   } catch (error) {
-    if (error instanceof ApiError && error.status === 404) return null;
+    // 400 = id que não cabe no Long da API (`{ id: "Formato inválido." }`): também não existe.
+    if (error instanceof ApiError && (error.status === 404 || error.status === 400)) return null;
     throw error;
   }
 });

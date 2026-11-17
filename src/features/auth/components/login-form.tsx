@@ -1,23 +1,22 @@
 "use client";
 
-import {
-  Alert,
-  Button,
-  FieldError,
-  Form,
-  InputGroup,
-  Label,
-  TextField,
-} from "@heroui/react";
-import { startTransition, useActionState, useState } from "react";
-import { ArrowRightToSquare, Envelope, Eye, EyeSlash, Lock } from "@/components/icons";
+import { Alert, Button, FieldError, Form, InputGroup, Label, TextField } from "@heroui/react";
+import Link from "next/link";
+import { startTransition, useActionState } from "react";
+import { ArrowRightToSquare, Envelope } from "@/components/icons";
 import { entrar, type LoginState } from "../actions";
+import { comNext } from "../utils";
+import { CampoSenha } from "./campo-senha";
 
 const INICIAL: LoginState = {};
 
-export function LoginForm({ next, expirado }: { next?: string; expirado?: boolean }) {
+const AVISOS = {
+  expirado: { titulo: "Sua sessão expirou", texto: "Entre novamente para continuar." },
+  perfil: { titulo: "Seu perfil de acesso mudou", texto: "Entre novamente para acessar a área certa." },
+};
+
+export function LoginForm({ next, motivo }: { next?: string; motivo?: keyof typeof AVISOS }) {
   const [state, formAction, pending] = useActionState(entrar, INICIAL);
-  const [mostrarSenha, setMostrarSenha] = useState(false);
 
   return (
     <Form
@@ -30,12 +29,12 @@ export function LoginForm({ next, expirado }: { next?: string; expirado?: boolea
         startTransition(() => formAction(data));
       }}
     >
-      {expirado && !state.mensagem && (
+      {motivo && !state.mensagem && (
         <Alert status="warning">
           <Alert.Indicator />
           <Alert.Content>
-            <Alert.Title>Sua sessão expirou</Alert.Title>
-            <Alert.Description>Entre novamente para continuar.</Alert.Description>
+            <Alert.Title>{AVISOS[motivo].titulo}</Alert.Title>
+            <Alert.Description>{AVISOS[motivo].texto}</Alert.Description>
           </Alert.Content>
         </Alert>
       )}
@@ -58,7 +57,7 @@ export function LoginForm({ next, expirado }: { next?: string; expirado?: boolea
         isRequired
         autoComplete="email"
         autoFocus
-        defaultValue={state.email}
+        defaultValue={state.valores?.email}
       >
         <Label>E-mail</Label>
         <InputGroup>
@@ -70,41 +69,20 @@ export function LoginForm({ next, expirado }: { next?: string; expirado?: boolea
         <FieldError />
       </TextField>
 
-      <TextField
-        name="senha"
-        type={mostrarSenha ? "text" : "password"}
-        isRequired
-        autoComplete="current-password"
-      >
-        <Label>Senha</Label>
-        <InputGroup>
-          <InputGroup.Prefix>
-            <Lock className="size-4 text-muted" aria-hidden />
-          </InputGroup.Prefix>
-          <InputGroup.Input placeholder="Sua senha" />
-          <InputGroup.Suffix>
-            <Button
-              isIconOnly
-              size="sm"
-              variant="ghost"
-              aria-label={mostrarSenha ? "Ocultar senha" : "Mostrar senha"}
-              onPress={() => setMostrarSenha((v) => !v)}
-            >
-              {mostrarSenha ? (
-                <EyeSlash className="size-4" aria-hidden />
-              ) : (
-                <Eye className="size-4" aria-hidden />
-              )}
-            </Button>
-          </InputGroup.Suffix>
-        </InputGroup>
-        <FieldError />
-      </TextField>
+      <CampoSenha autoComplete="current-password" />
 
       <Button type="submit" variant="primary" fullWidth isPending={pending} className="mt-2">
         {!pending && <ArrowRightToSquare className="size-4" aria-hidden />}
         {pending ? "Entrando…" : "Entrar"}
       </Button>
+
+      <p className="text-center text-sm text-muted">
+        Ainda não tem conta?{" "}
+        <Link href={comNext("/cadastro", next)} className="font-medium text-accent hover:underline">
+          Criar conta
+        </Link>
+      </p>
     </Form>
   );
 }
+

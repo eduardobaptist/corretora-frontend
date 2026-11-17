@@ -15,6 +15,15 @@ export interface LoginResponse {
   token: string;
 }
 
+/** Schema `CadastroRequest` (POST /auth/cadastro). A API sempre cria como BASIC. */
+export interface CadastroRequest {
+  nome: string;
+  email: string;
+  senha: string;
+}
+
+export type CadastroCampo = keyof CadastroRequest;
+
 /** Claims do JWT: `sub` (e-mail), `id`, `nome`, `roles`, `iss`, `iat`, `exp`. */
 export interface TokenClaims {
   sub: string;

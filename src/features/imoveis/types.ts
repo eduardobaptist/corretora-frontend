@@ -1,21 +1,9 @@
 // Espelha o JSON de GET /imoveis e GET /imoveis/{id} da API Spring (docs/openapi.yaml).
 
-export interface TipoImovel {
-  id: number;
-  nome: string;
-  descricao: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
+import type { Bairro } from "@/features/bairros/types";
+import type { TipoImovel } from "@/features/tipos-imoveis/types";
 
-export interface Bairro {
-  id: number;
-  nome: string;
-  cidade: string;
-  estado: string;
-  cepInicial: string | null;
-  cepFinal: string | null;
-}
+export type { Bairro, TipoImovel };
 
 export interface Imovel {
   id: number;
@@ -45,10 +33,10 @@ export interface Imovel {
   updatedAt: string;
 }
 
-/** Corpo de POST /imoveis/sabermais/{id}. Todos obrigatórios (nulo → 500 na API). */
+/** Corpo de POST /imoveis/sabermais/{id}. Telefone opcional; o resto obrigatório. */
 export interface ImovelSaberMais {
   nome: string;
   email: string;
-  telefone: string;
+  telefone: string | null;
   mensagem: string;
 }

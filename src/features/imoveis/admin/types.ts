@@ -1,0 +1,39 @@
+// Corpo de POST/PUT /imoveis (schema `ImovelInput` em docs/openapi.yaml).
+// O PUT substitui tudo: campo omitido vira `null`, então o formulário manda todos.
+// `fotos` não faz parte (é ignorado no POST/PUT).
+
+/** Rota da lista de imóveis do admin (novo: `/novo`, edição: `/{id}`). */
+export const ADMIN_IMOVEIS = "/admin/imoveis";
+
+export interface IdRef {
+  id: number;
+}
+
+export interface ImovelInput {
+  titulo: string;
+  descricao: string | null;
+  precoVenda: number | null;
+  precoAluguel: number | null;
+  finalidade: string;
+  status: string;
+  dormitorios: number | null;
+  banheiros: number | null;
+  garagem: number | null;
+  areaTotal: number | null;
+  areaConstruida: number | null;
+  endereco: string;
+  numero: string | null;
+  complemento: string | null;
+  cep: string | null;
+  caracteristicas: string | null;
+  destaque: boolean;
+  tipoImovel: IdRef | null;
+  bairro: IdRef | null;
+}
+
+export type ImovelCampo = keyof ImovelInput;
+
+// `finalidade` e `status` são texto livre na API: o formulário sugere estes valores
+// (mais os já usados nos cadastros), mas aceita qualquer texto.
+export const SUGESTOES_FINALIDADE = ["Residencial", "Comercial", "Rural"];
+export const SUGESTOES_STATUS = ["Disponível", "Reservado", "Vendido", "Alugado"];

@@ -27,6 +27,11 @@ export function destinoSeguro(destino: string | null | undefined): string | null
   return destino;
 }
 
+/** Leva o ?next= adiante entre login e cadastro. */
+export function comNext(rota: string, next?: string) {
+  return next ? `${rota}?${new URLSearchParams({ next })}` : rota;
+}
+
 export function iniciais(nome: string) {
   const partes = nome.trim().split(/\s+/).filter(Boolean);
   const letras = partes.length > 1 ? partes[0][0] + partes.at(-1)![0] : (partes[0] ?? "?").slice(0, 2);

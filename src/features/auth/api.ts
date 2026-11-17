@@ -2,35 +2,65 @@ import "server-only";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 import { ApiError, apiGet, apiPostJson, bearer } from "@/lib/api";
+import { errosDaApi } from "@/lib/erros";
 import { lerSessao } from "./session";
-import type { Area, LoginResponse, Usuario } from "./types";
+import type { Area, CadastroCampo, CadastroRequest, LoginResponse, Usuario } from "./types";
 import { AREA_HREF, areaDoPapel } from "./utils";
 
-export type ResultadoLogin =
+/** Resultado de login/cadastro: o token, ou erros por campo (400/409) e/ou uma mensagem geral. */
+export type ResultadoAuth<Campo extends string> =
   | { ok: true; token: string }
-  | { ok: false; motivo: "credenciais" | "conexao" | "erro"; mensagem: string };
+  | { ok: false; erros?: Partial<Record<Campo, string>>; mensagem?: string };
+
+/** Falhas comuns a login e cadastro: 400 `{ campo: mensagem }` e API fora do ar. */
+function falhaAuth<Campo extends string>(
+  error: unknown,
+  campos: readonly Campo[],
+  acao: string,
+): ResultadoAuth<Campo> {
+  const daApi = errosDaApi(error, campos);
+  if (daApi) {
+    return {
+      ok: false,
+      erros: daApi.erros,
+      mensagem: daApi.gerais.length > 0 ? daApi.gerais.join(" ") : undefined,
+    };
+  }
+  if (error instanceof ApiError && error.status == null) {
+    return { ok: false, mensagem: "Não foi possível conectar à API. Tente novamente em instantes." };
+  }
+  return { ok: false, mensagem: `Não foi possível ${acao} agora. Tente novamente em instantes.` };
+}
 
 /** POST /auth/login. 401 → corpo text/plain com a mensagem ("E-mail ou senha inválidos."). */
-export async function autenticar(email: string, senha: string): Promise<ResultadoLogin> {
+export async function autenticar(
+  email: string,
+  senha: string,
+): Promise<ResultadoAuth<"email" | "senha">> {
   try {
     const { token } = await apiPostJson<LoginResponse>("/auth/login", { email, senha });
     return { ok: true, token };
   } catch (error) {
     if (error instanceof ApiError && error.status === 401) {
-      return {
-        ok: false,
-        motivo: "credenciais",
-        mensagem: error.body?.trim() || "E-mail ou senha inválidos.",
-      };
+      return { ok: false, mensagem: error.body?.trim() || "E-mail ou senha inválidos." };
     }
-    if (error instanceof ApiError && error.status == null) {
-      return { ok: false, motivo: "conexao", mensagem: error.message };
+    return falhaAuth(error, ["email", "senha"], "entrar");
+  }
+}
+
+/**
+ * POST /auth/cadastro (público): cria um cliente (BASIC) e já devolve o token, como o login.
+ * E-mail repetido → 409 (text/plain "E-mail já cadastrado."), mostrado no campo e-mail.
+ */
+export async function cadastrarCliente(dados: CadastroRequest): Promise<ResultadoAuth<CadastroCampo>> {
+  try {
+    const { token } = await apiPostJson<LoginResponse>("/auth/cadastro", dados);
+    return { ok: true, token };
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 409) {
+      return { ok: false, erros: { email: error.body?.trim() || "E-mail já cadastrado." } };
     }
-    return {
-      ok: false,
-      motivo: "erro",
-      mensagem: "Não foi possível entrar agora. Tente novamente em instantes.",
-    };
+    return falhaAuth(error, ["nome", "email", "senha"], "criar sua conta");
   }
 }
 
@@ -61,8 +91,36 @@ export const usuarioAtual = cache(async (destino?: string): Promise<Usuario> => 
 export async function exigirArea(area: Area): Promise<Usuario> {
   const usuario = await usuarioAtual(AREA_HREF[area]);
   const areaDoUsuario = areaDoPapel(usuario.role);
-  if (areaDoUsuario !== area) redirect(AREA_HREF[areaDoUsuario]);
+  if (areaDoUsuario !== area) {
+    // Perfil trocado depois do login: o token (cookie) ainda tem o papel antigo e o proxy
+    // mandaria de volta para cá (loop). Um novo login grava o token com o papel atual.
+    const sessao = await lerSessao();
+    if (sessao && areaDoPapel(sessao.role) === area) redirect(urlLogin({ motivo: "perfil" }));
+    redirect(AREA_HREF[areaDoUsuario]);
+  }
   return usuario;
+}
+
+/**
+ * Chamada autenticada de admin (páginas e Server Actions): confirma o papel na API, injeta o
+ * header Bearer e trata 401 (token expirou no meio do caminho) mandando para o login.
+ * `usuario` é o admin logado (para regras como "não excluir a si mesmo").
+ */
+export async function comoAdmin<T>(
+  fn: (auth: HeadersInit, usuario: Usuario) => Promise<T>,
+): Promise<T> {
+  const usuario = await exigirArea("admin");
+  const sessao = await lerSessao();
+  if (!sessao) redirect(urlLogin({ next: AREA_HREF.admin }));
+
+  try {
+    return await fn(bearer(sessao.token), usuario);
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 401) {
+      redirect(urlLogin({ motivo: "expirado", next: AREA_HREF.admin }));
+    }
+    throw error;
+  }
 }
 
 function urlLogin(params: { motivo?: string; next?: string }) {

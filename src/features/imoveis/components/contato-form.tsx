@@ -12,6 +12,7 @@ import {
 } from "@heroui/react";
 import { startTransition, useActionState, useState } from "react";
 import { CircleCheck, Envelope } from "@/components/icons";
+import { MAX_MENSAGEM, MAX_TEXTO } from "@/lib/acoes";
 import { enviarContato, type ContatoState } from "../actions";
 
 interface ContatoProps {
@@ -67,7 +68,7 @@ function ContatoForm({
         startTransition(() => formAction(data));
       }}
     >
-      <TextField name="nome" isRequired autoComplete="name" defaultValue={valores.nome}>
+      <TextField name="nome" isRequired autoComplete="name" maxLength={MAX_TEXTO} defaultValue={valores.nome}>
         <Label>Nome</Label>
         <Input placeholder="Seu nome" />
         <FieldError />
@@ -78,6 +79,7 @@ function ContatoForm({
         type="email"
         isRequired
         autoComplete="email"
+        maxLength={MAX_TEXTO}
         defaultValue={valores.email}
       >
         <Label>E-mail</Label>
@@ -85,8 +87,14 @@ function ContatoForm({
         <FieldError />
       </TextField>
 
-      <TextField name="telefone" type="tel" isRequired autoComplete="tel" defaultValue={valores.telefone}>
-        <Label>Telefone</Label>
+      <TextField
+        name="telefone"
+        type="tel"
+        autoComplete="tel"
+        maxLength={20}
+        defaultValue={valores.telefone ?? ""}
+      >
+        <Label>Telefone (opcional)</Label>
         <Input placeholder="(00) 00000-0000" />
         <FieldError />
       </TextField>
@@ -94,6 +102,7 @@ function ContatoForm({
       <TextField
         name="mensagem"
         isRequired
+        maxLength={MAX_MENSAGEM}
         defaultValue={
           valores.mensagem ??
           `Olá! Tenho interesse no imóvel "${titulo}" (cód. ${imovelId}) e gostaria de mais informações.`
@@ -104,7 +113,7 @@ function ContatoForm({
         <FieldError />
       </TextField>
 
-      {state.status === "erro" && state.mensagem && !state.erros && (
+      {state.status === "erro" && state.mensagem && (
         <Alert status="danger">
           <Alert.Indicator />
           <Alert.Content>

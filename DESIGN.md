@@ -282,15 +282,78 @@ rola para o topo; filtros não rolam.
 - Erros: por campo (`validationErrors`) para campo vazio/e-mail inválido; `Alert danger` para
   credenciais (texto da API) ou API fora; `Alert warning` para sessão expirada (`?motivo=expirado`).
 
+### Cadastro: `cadastro-form.tsx`
+
+- Mesmo card e padrão do login: nome (`Person`), e-mail (`Envelope`) e `CampoSenha` (o mesmo
+  campo do login, com `Description` "De 6 a 72 caracteres."). Botão `primary fullWidth` com
+  `PersonPlus` ("Criando conta…"). Rodapé `text-sm text-muted` com link `text-accent` para o
+  login ("Já tem conta? Entrar"); o login tem o inverso ("Ainda não tem conta? Criar conta").
+- E-mail repetido (409) aparece no campo e-mail; demais erros da API, nos campos ou no Alert.
+
 ### Formulário: `contato-form.tsx`
 
 - HeroUI `Form` + `TextField` (`Label`, `Input`/`TextArea`, `FieldError`), `isRequired`,
   `type` e `autoComplete` certos. Erros do servidor vão em `validationErrors` e aparecem no campo.
+- `maxLength` no campo com o limite da API (o usuário não consegue passar dele). Opcional se diz no
+  rótulo ("Telefone (opcional)"). Regra que o usuário precisa saber antes (tamanho da senha) vai
+  em `Description`, não só no erro.
+- Mensagens do `400` da API são mostradas como chegam, no campo correspondente; o Alert geral diz
+  "Confira os campos destacados." e lista o que não tem campo na tela.
 - Envio por `onSubmit` + `startTransition(formAction)`, para o React não limpar o formulário
   quando o servidor devolve erro. Botão `primary fullWidth isPending` ("Enviando…").
 - Falha geral → `Alert danger` acima do botão. Sucesso → o formulário dá lugar a uma
   confirmação (`CircleCheck text-success`, `role="status"`) com "Enviar outra mensagem".
 - Mensagem já vem preenchida com o título e o código do imóvel.
+
+### Cadastros do admin: `src/components/admin/`
+
+```
+Título da página (AreaCabecalho)
+[busca (só usuários)] 6 bairros cadastrados              [+ Novo bairro]   ← ListaToolbar
+┌────────────────────────────────────────────────────────────────────┐
+│ Bairro      Cidade        Faixa de CEP              Ações          │   ← HeroUI Table
+│ Centro      Panambi/RS    98280-000 a 98289-999      ✎  🗑          │
+└────────────────────────────────────────────────────────────────────┘
+Mostrando 1–20 de 57                         ‹ 1 2 3 ›                ← Paginacao (a mesma da vitrine)
+```
+
+- **Toolbar** (`ListaToolbar`): contagem `text-sm text-muted` com `aria-live` e plural certo
+  ("1 bairro cadastrado" / "6 bairros cadastrados"); busca `SearchField` normal (não `rounded-full`,
+  esse é só da vitrine) `w-full sm:max-w-sm`; botão `primary` "Novo …" com `Plus`, `w-full sm:w-auto`.
+- **Tabela**: HeroUI `Table` > `ScrollContainer` > `Content` com `aria-label` e `min-w-[…]` (rola na
+  horizontal no celular, não espreme). Primeira coluna `isRowHeader` em `font-medium`; dados de
+  apoio `text-muted`; vazio não renderiza nada. "Ações" alinhada à direita (`text-end` + `justify-end`).
+- **Ações de linha** (`AcaoIcone`): `Button isIconOnly size="sm" variant="ghost"` com `aria-label` e
+  `Tooltip` do mesmo texto, que diz o registro ("Editar Centro"). Excluir com o ícone `text-danger`.
+  Ação proibida (o admin na própria linha) fica `isDisabled` e o tooltip explica o motivo.
+- **Linha de imóvel**: miniatura `h-12 w-16 rounded-lg` (capa ou `ImovelFotoPlaceholder` com ícone
+  `size-5`), título `line-clamp-1` + `StarFill text-accent` se destaque, "Cód. N · Bairro, Cidade/UF"
+  em `text-xs text-muted`; finalidade em `Chip secondary`, status em `StatusChip`.
+- **Linha de usuário**: `Avatar size="sm"` com iniciais (`accent` para admin), chip `secondary` "Você"
+  na própria linha, perfil em `Chip soft` (`accent` = Administrador, `default` = Cliente).
+- **Formulário curto em modal** (`FormularioModal`): `Modal size="md" scroll="inside"`, título
+  "Novo …"/"Editar …", campos HeroUI empilhados (`gap-4`; pares curtos lado a lado, ex.: Cidade +
+  UF, CEP inicial + final). Rodapé: `tertiary` "Cancelar" + `primary` com `FloppyDisk`
+  ("Cadastrar …" / "Salvar alterações", "Salvando…" com `isPending`). Erro geral em `Alert danger`
+  no fim do corpo. Opcional se diz no rótulo ("Descrição (opcional)") ou na descrição do modal.
+- **Formulário longo em página** (imóvel): `max-w-4xl`, um `Card p-5 sm:p-6` por seção (Anúncio,
+  Valores, Características, Localização) com `Card.Title text-base` + `Card.Description`, campos em
+  `grid sm:grid-cols-2`. Link "← Imóveis" acima do título. Botões no fim, à direita
+  (`flex-col-reverse` no celular: o principal fica em cima).
+- **Campos**: dinheiro e números em `NumberField` (`formatOptions` BRL; área com "(m²)" no rótulo);
+  relação em `Select` com opção neutra "Sem …"; texto livre com sugestões (finalidade, status) em
+  `ComboBox allowsCustomValue`; liga/desliga em `Switch`; lista separada por vírgula em `TextArea`
+  com `Description` explicando. Senha com mostrar/ocultar, como no login.
+- **Confirmação** (`ConfirmarExclusao` / `ConfirmarAcao`): `AlertDialog size="sm"`, ícone `danger`
+  (excluir) ou `accent` (mudança sensível, ex.: trocar perfil). Título em pergunta ("Excluir
+  bairro?"), corpo com o nome em `<strong className="text-foreground">`, a consequência e "Isso não
+  pode ser desfeito.". Botões "Cancelar" (`tertiary`) e o da ação (`danger`/`primary`). Se a API
+  recusar, o diálogo fica aberto com `Alert danger`.
+- **Feedback de sucesso**: `toast.success("Bairro cadastrado.")` (região `bottom end`, em
+  `providers.tsx`). Frase curta no particípio, com ponto final.
+- **Estados**: skeleton = a mesma `Table` com 8 linhas de `Skeleton` (`TabelaSkeleton`) e toolbar
+  com o botão desabilitado; erro = `ListaErro`; vazio = `ListaVazia` com a borda tracejada da área
+  e uma ação (cadastrar, limpar busca, ir para a primeira página).
 
 ### Valores e campos nulos
 
@@ -365,4 +428,7 @@ Esqueleto: `Skeleton` com `rounded-md` em linhas de texto e `rounded-none` na m�
   público, remover e configurar `images.remotePatterns`.
 - **Filtros sem apoio da API**: filtragem local sobre a lista completa (cache de minutos).
 - **`finalidade` e `status` são texto livre** na API: não há lista fechada para padronizar
-  rótulos/cores além do mapa de status acima.
+  rótulos/cores além do mapa de status acima. Na base real os valores são "Residencial"/"Comercial"
+  e "Disponível" (o formulário do admin sugere esses).
+- **Gestão de fotos no admin**: falta a API listar as fotos com `id` (ver CLAUDE.md). Quando existir,
+  seguir a galeria do detalhe (miniaturas `rounded-lg`, capa com `ring-2 ring-accent`).

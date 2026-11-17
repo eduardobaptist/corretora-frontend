@@ -1,5 +1,16 @@
 "use server";
 
+import {
+  EMAIL,
+  MAX_MENSAGEM,
+  MAX_TEXTO,
+  TELEFONE,
+  texto,
+  textoOuNull,
+  validador,
+} from "@/lib/acoes";
+import { ApiError } from "@/lib/api";
+import { errosDaApi, resumoDaValidacao } from "@/lib/erros";
 import { enviarSaberMais } from "./api";
 import type { ImovelSaberMais } from "./types";
 
@@ -13,7 +24,7 @@ export interface ContatoState {
   valores?: Partial<ImovelSaberMais>;
 }
 
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const CAMPOS: readonly ContatoCampo[] = ["nome", "email", "telefone", "mensagem"];
 
 export async function enviarContato(
   imovelId: number,
@@ -21,27 +32,54 @@ export async function enviarContato(
   formData: FormData,
 ): Promise<ContatoState> {
   const valores: ImovelSaberMais = {
-    nome: String(formData.get("nome") ?? "").trim(),
-    email: String(formData.get("email") ?? "").trim(),
-    telefone: String(formData.get("telefone") ?? "").trim(),
-    mensagem: String(formData.get("mensagem") ?? "").trim(),
+    nome: texto(formData, "nome"),
+    email: texto(formData, "email"),
+    telefone: textoOuNull(formData, "telefone"),
+    mensagem: texto(formData, "mensagem"),
   };
 
-  // A API devolve 500 se algum campo vier nulo: valida tudo antes de repassar.
-  const erros: ContatoState["erros"] = {};
-  if (!valores.nome) erros.nome = "Informe seu nome.";
-  if (!EMAIL.test(valores.email)) erros.email = "Informe um e-mail válido.";
-  if (valores.telefone.replace(/\D/g, "").length < 10)
-    erros.telefone = "Informe um telefone com DDD.";
-  if (!valores.mensagem) erros.mensagem = "Escreva uma mensagem.";
+  // ImovelSaberMais: nome e e-mail obrigatórios (até 255), mensagem obrigatória (até 2000),
+  // telefone opcional (8 a 20 caracteres entre dígitos, espaços, parênteses, + e -).
+  const v = validador<ContatoCampo>();
+  v.regra("nome", !valores.nome, "Informe seu nome.");
+  v.maximo("nome", valores.nome, MAX_TEXTO, "O nome");
+  v.regra("email", !EMAIL.test(valores.email), "Informe um e-mail válido.");
+  v.maximo("email", valores.email, MAX_TEXTO, "O e-mail");
+  if (valores.telefone) {
+    v.regra(
+      "telefone",
+      !TELEFONE.test(valores.telefone),
+      "Use de 8 a 20 caracteres entre dígitos, espaços, parênteses, + e -.",
+    );
+    v.regra("telefone", valores.telefone.replace(/\D/g, "").length < 10, "Informe o telefone com DDD.");
+  }
+  v.regra("mensagem", !valores.mensagem, "Escreva uma mensagem.");
+  v.maximo("mensagem", valores.mensagem, MAX_MENSAGEM, "A mensagem");
 
-  if (Object.keys(erros).length > 0) {
-    return { status: "erro", erros, valores, mensagem: "Confira os campos destacados." };
+  if (v.temErros) {
+    // Sem mensagem geral: os erros já aparecem em cada campo.
+    return { status: "erro", erros: v.erros, valores };
   }
 
   try {
     await enviarSaberMais(imovelId, valores);
-  } catch {
+  } catch (error) {
+    const daApi = errosDaApi(error, CAMPOS);
+    if (daApi) {
+      return {
+        status: "erro",
+        erros: daApi.erros,
+        valores,
+        mensagem: resumoDaValidacao(daApi.erros, daApi.gerais),
+      };
+    }
+    if (error instanceof ApiError && error.status === 404) {
+      return {
+        status: "erro",
+        valores,
+        mensagem: "Este imóvel não está mais disponível. Volte à vitrine para ver outras opções.",
+      };
+    }
     return {
       status: "erro",
       valores,

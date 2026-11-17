@@ -31,9 +31,13 @@ async function LoginConteudo({ searchParams }: Pick<PageProps<"/login">, "search
   return (
     <LoginForm
       next={destinoSeguro(primeiro(sp.next)) ?? undefined}
-      expirado={primeiro(sp.motivo) === "expirado"}
+      motivo={motivoValido(primeiro(sp.motivo))}
     />
   );
+}
+
+function motivoValido(motivo: string | undefined) {
+  return motivo === "expirado" || motivo === "perfil" ? motivo : undefined;
 }
 
 function LoginFormSkeleton() {
