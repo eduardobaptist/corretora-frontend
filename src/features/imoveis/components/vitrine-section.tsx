@@ -1,6 +1,11 @@
 import { Alert, Card, Skeleton } from "@heroui/react";
+import { visitanteAtual } from "@/features/auth/api";
+import { comNext } from "@/features/auth/utils";
+import { favoritosOuNull, idsFavoritos } from "@/features/favoritos/api";
+import { FavoritoBotao } from "@/features/favoritos/components/favorito-botao";
 import { ApiError } from "@/lib/api";
 import { consultarVitrine, type ResultadoVitrine } from "../api";
+import type { Imovel } from "../types";
 import { hrefImovel, parseVitrineParams } from "../vitrine-params";
 import { ImoveisGrid } from "./imoveis-grid";
 import { ImoveisSearch } from "./imoveis-search";
@@ -26,6 +31,11 @@ export async function VitrineSection({
 }) {
   const params = parseVitrineParams(await searchParams);
 
+  // Coração de favorito: cliente vê o estado; visitante é levado ao login; admin não vê.
+  const visitante = await visitanteAtual();
+  const favoritosPromise =
+    visitante.tipo === "cliente" ? favoritosOuNull(() => idsFavoritos(visitante.auth)) : null;
+
   let resultado: ResultadoVitrine;
   try {
     resultado = await consultarVitrine(params);
@@ -47,6 +57,17 @@ export async function VitrineSection({
 
   const { pagina, opcoes } = resultado;
   const { content, page } = pagina;
+  const favoritos = favoritosPromise ? await favoritosPromise : null;
+
+  const acaoDoCard = (imovel: Imovel) => {
+    if (visitante.tipo === "anonimo") {
+      return (
+        <FavoritoBotao imovelId={imovel.id} titulo={imovel.titulo} favorito={false} loginHref={comNext("/login", base)} />
+      );
+    }
+    if (!favoritos) return undefined;
+    return <FavoritoBotao imovelId={imovel.id} titulo={imovel.titulo} favorito={favoritos.has(imovel.id)} />;
+  };
 
   return (
     <VitrineProvider params={params}>
@@ -67,6 +88,7 @@ export async function VitrineSection({
                       imovel={imovel}
                       href={hrefImovel(base, imovel.id)}
                       priority={i < 3}
+                      acao={acaoDoCard(imovel)}
                     />
                   ))}
                 </ImoveisGrid>

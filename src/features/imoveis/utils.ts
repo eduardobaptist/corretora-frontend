@@ -1,5 +1,5 @@
 import { normalize } from "@/lib/format";
-import type { Imovel } from "./types";
+import { ROTULO_STATUS_IMOVEL, type Imovel } from "./types";
 import type { FiltrosVitrine, Ordenacao } from "./vitrine-params";
 
 export function parseCaracteristicas(imovel: Imovel) {
@@ -61,7 +61,7 @@ export function filtrarImoveis(imoveis: Imovel[], f: FiltrosVitrine) {
         imovel.titulo,
         imovel.descricao,
         imovel.finalidade,
-        imovel.status,
+        ROTULO_STATUS_IMOVEL[imovel.status],
         imovel.endereco,
         imovel.caracteristicas,
         imovel.tipoImovel?.nome,

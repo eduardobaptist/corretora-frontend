@@ -16,12 +16,13 @@ export class ApiError extends Error {
   }
 
   /**
-   * Erros de validação de um `400`: objeto plano `{ campo: mensagem }` (uma mensagem por campo;
-   * aninhados com ponto, ex.: `bairro.id`; corpo malformado vem como `corpo`). `null` se não for
-   * um 400 nesse formato.
+   * Erros de validação de um `400` (ou conflito de estado de um `409`): objeto plano
+   * `{ campo: mensagem }` (uma mensagem por campo; aninhados com ponto, ex.: `bairro.id`; corpo
+   * malformado vem como `corpo`). `null` se não for um 400/409 nesse formato (o 409 de e-mail
+   * repetido ainda vem em text/plain).
    */
   get validacao(): Record<string, string> | null {
-    if (this.status !== 400 || !this.body) return null;
+    if ((this.status !== 400 && this.status !== 409) || !this.body) return null;
     try {
       const json: unknown = JSON.parse(this.body);
       if (!json || typeof json !== "object" || Array.isArray(json)) return null;
@@ -49,6 +50,11 @@ export interface PageMetadata {
 export interface Page<T> {
   content: T[];
   page: PageMetadata;
+}
+
+/** Requisição crua: devolve a `Response` (para PDF e outros binários). Erro HTTP vira `ApiError`. */
+export async function apiResposta(path: string, init?: RequestInit): Promise<Response> {
+  return request(path, init);
 }
 
 async function request(path: string, init?: RequestInit): Promise<Response> {
@@ -107,6 +113,28 @@ export async function apiPost(path: string, body: unknown, init?: RequestInit): 
 /** PUT com corpo JSON. Lembre: o PUT da API substitui o registro inteiro (omitido vira `null`). */
 export async function apiPut(path: string, body: unknown, init?: RequestInit): Promise<void> {
   await enviarJson("PUT", path, body, init);
+}
+
+/** PATCH com corpo JSON que devolve o registro atualizado (ex.: status da oferta). */
+export async function apiPatchJson<T>(path: string, body: unknown, init?: RequestInit): Promise<T> {
+  const res = await request(path, {
+    ...init,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...init?.headers },
+    body: JSON.stringify(body),
+  });
+  return res.json() as Promise<T>;
+}
+
+/** POST sem corpo que devolve o registro atualizado (ações de status: cancelar, assinar). */
+export async function apiPostAcao<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await request(path, { ...init, method: "POST" });
+  return res.json() as Promise<T>;
+}
+
+/** POST multipart (upload). O fetch monta o `Content-Type` com o boundary. */
+export async function apiPostForm(path: string, body: FormData, init?: RequestInit): Promise<void> {
+  await request(path, { ...init, method: "POST", body });
 }
 
 export async function apiDelete(path: string, init?: RequestInit): Promise<void> {

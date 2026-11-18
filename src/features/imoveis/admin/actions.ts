@@ -16,6 +16,7 @@ import {
 } from "@/lib/acoes";
 import { falhaDeFormulario, mensagemDeExclusao } from "@/lib/erros";
 import { TAG_IMOVEIS } from "../api";
+import { statusImovelValido, type StatusImovel } from "../types";
 import { atualizarImovel, criarImovel, excluirImovel as excluirNaApi } from "./api";
 import type { ImovelCampo, ImovelInput } from "./types";
 
@@ -31,7 +32,6 @@ const TEXTOS: [ImovelCampo, number, string][] = [
   ["titulo", MAX_TEXTO, "O título"],
   ["descricao", MAX_TEXTO_LONGO, "A descrição"],
   ["finalidade", MAX_TEXTO, "A finalidade"],
-  ["status", MAX_TEXTO, "O status"],
   ["endereco", MAX_TEXTO, "O endereço"],
   ["numero", MAX_TEXTO, "O número"],
   ["complemento", MAX_TEXTO, "O complemento"],
@@ -81,7 +81,8 @@ function lerImovel(formData: FormData): { input: ImovelInput } | { erros: Erros 
     titulo: texto(formData, "titulo"),
     descricao: textoOuNull(formData, "descricao"),
     finalidade: texto(formData, "finalidade"),
-    status: texto(formData, "status"),
+    // Enum na API (texto livre antigo → 400). Inválido fica vazio e cai na regra abaixo.
+    status: statusImovelValido(texto(formData, "status")) as StatusImovel,
     endereco: texto(formData, "endereco"),
     numero: textoOuNull(formData, "numero"),
     complemento: textoOuNull(formData, "complemento"),
@@ -108,7 +109,7 @@ function lerImovel(formData: FormData): { input: ImovelInput } | { erros: Erros 
 
   v.regra("titulo", !input.titulo, "Informe o título do anúncio.");
   v.regra("finalidade", !input.finalidade, "Informe a finalidade.");
-  v.regra("status", !input.status, "Informe o status.");
+  v.regra("status", !input.status, "Escolha o status.");
   v.regra("endereco", !input.endereco, "Informe o endereço.");
   for (const [campo, max, rotulo] of TEXTOS) {
     v.maximo(campo, input[campo] as string | null, max, rotulo);

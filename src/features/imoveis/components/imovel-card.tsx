@@ -13,9 +13,11 @@ interface ImovelCardProps {
   /** link do detalhe (muda entre site e áreas logadas) */
   href: string;
   priority?: boolean;
+  /** Ação no canto da foto (ex.: favoritar). Fica acima do link esticado. */
+  acao?: React.ReactNode;
 }
 
-export function ImovelCard({ imovel, href, priority }: ImovelCardProps) {
+export function ImovelCard({ imovel, href, priority, acao }: ImovelCardProps) {
   const caracteristicas = parseCaracteristicas(imovel);
   const [capa] = imovel.fotos;
 
@@ -45,12 +47,15 @@ export function ImovelCard({ imovel, href, priority }: ImovelCardProps) {
               {imovel.finalidade}
             </Chip>
           </div>
-          {imovel.destaque && (
-            <Chip size="sm" color="accent" variant="primary">
-              <StarFill className="size-3" aria-hidden />
-              <Chip.Label>Destaque</Chip.Label>
-            </Chip>
-          )}
+          <div className="flex shrink-0 items-center gap-1.5">
+            {imovel.destaque && (
+              <Chip size="sm" color="accent" variant="primary">
+                <StarFill className="size-3" aria-hidden />
+                <Chip.Label>Destaque</Chip.Label>
+              </Chip>
+            )}
+            {acao}
+          </div>
         </div>
 
         {imovel.fotos.length > 1 && (

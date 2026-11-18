@@ -6,11 +6,13 @@ import { usePathname } from "next/navigation";
 import { Suspense, useState, type ComponentType, type SVGProps } from "react";
 import {
   Bars,
+  CircleDollar,
+  FileText,
+  Heart,
   House,
   LayoutCellsLarge,
   Magnifier,
   MapPin,
-  Person,
   Persons,
   Tags,
   Xmark,
@@ -30,8 +32,9 @@ interface SecaoNav {
 }
 
 // Opções de cada papel, conforme o que a API permite (docs/openapi.yaml):
-// ADMIN gerencia imóveis (e fotos), bairros, tipos de imóvel e usuários.
-// BASIC tem o próprio usuário (/auth/me) e o que é público (vitrine).
+// ADMIN gerencia imóveis (e fotos), bairros, tipos de imóvel e usuários, decide as ofertas e
+// cria/cancela contratos. BASIC tem favoritos, as próprias ofertas e contratos (assina) e o que é
+// público (vitrine). Seus dados aparecem no bloco de perfil do rodapé.
 // A primeira opção é a raiz da área (ativa só na rota exata).
 const NAV: Record<Area, { titulo: string; secoes: SecaoNav[] }> = {
   admin: {
@@ -42,6 +45,13 @@ const NAV: Record<Area, { titulo: string; secoes: SecaoNav[] }> = {
         itens: [
           { href: "/admin", label: "Painel", icon: LayoutCellsLarge },
           { href: "/admin/vitrine", label: "Vitrine", icon: Magnifier },
+        ],
+      },
+      {
+        titulo: "Negócios",
+        itens: [
+          { href: "/admin/ofertas", label: "Ofertas", icon: CircleDollar },
+          { href: "/admin/contratos", label: "Contratos", icon: FileText },
         ],
       },
       {
@@ -61,9 +71,10 @@ const NAV: Record<Area, { titulo: string; secoes: SecaoNav[] }> = {
       {
         titulo: "Minha conta",
         itens: [
-          { href: "/cliente", label: "Início", icon: LayoutCellsLarge },
+          { href: "/cliente", label: "Favoritos", icon: Heart },
           { href: "/cliente/vitrine", label: "Vitrine", icon: Magnifier },
-          { href: "/cliente/perfil", label: "Meu perfil", icon: Person },
+          { href: "/cliente/ofertas", label: "Minhas ofertas", icon: CircleDollar },
+          { href: "/cliente/contratos", label: "Contratos", icon: FileText },
         ],
       },
     ],

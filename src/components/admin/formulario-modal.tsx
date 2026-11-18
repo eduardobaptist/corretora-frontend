@@ -14,6 +14,9 @@ interface FormularioModalProps {
   pending: boolean;
   formAction: (data: FormData) => void;
   rotuloSalvar?: string;
+  rotuloPendente?: string;
+  /** Ícone do botão principal (padrão: disquete). */
+  iconeSalvar?: React.ReactNode;
   children: React.ReactNode;
 }
 
@@ -31,6 +34,8 @@ export function FormularioModal({
   pending,
   formAction,
   rotuloSalvar = "Salvar",
+  rotuloPendente = "Salvando…",
+  iconeSalvar = <FloppyDisk className="size-4" aria-hidden />,
   children,
 }: FormularioModalProps) {
   const formId = useId();
@@ -74,8 +79,8 @@ export function FormularioModal({
                 Cancelar
               </Button>
               <Button type="submit" form={formId} variant="primary" isPending={pending}>
-                {!pending && <FloppyDisk className="size-4" aria-hidden />}
-                {pending ? "Salvando…" : rotuloSalvar}
+                {!pending && iconeSalvar}
+                {pending ? rotuloPendente : rotuloSalvar}
               </Button>
             </Modal.Footer>
           </Modal.Dialog>

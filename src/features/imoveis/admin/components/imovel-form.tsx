@@ -25,7 +25,7 @@ import { FloppyDisk } from "@/components/icons";
 import type { Bairro } from "@/features/bairros/types";
 import type { TipoImovel } from "@/features/tipos-imoveis/types";
 import { FORM_INICIAL, MAX_TEXTO, MAX_TEXTO_LONGO, type FormState } from "@/lib/acoes";
-import type { Imovel } from "../../types";
+import { ROTULO_STATUS_IMOVEL, STATUS_IMOVEL, type Imovel } from "../../types";
 import { salvarImovel } from "../actions";
 import { ADMIN_IMOVEIS, type ImovelCampo } from "../types";
 
@@ -34,7 +34,7 @@ export interface ImovelFormProps {
   imovel: Imovel | null;
   tipos: TipoImovel[];
   bairros: Bairro[];
-  sugestoes: { finalidade: string[]; status: string[] };
+  sugestoes: { finalidade: string[] };
 }
 
 const BRL = { style: "currency", currency: "BRL", maximumFractionDigits: 2 } as const;
@@ -92,13 +92,25 @@ export function ImovelForm({ imovel, tipos, bairros, sugestoes }: ImovelFormProp
           placeholder="Ex.: Residencial"
         />
 
-        <TextoSugerido
-          name="status"
-          label="Status"
-          valor={imovel?.status}
-          sugestoes={sugestoes.status}
-          placeholder="Ex.: Disponível"
-        />
+        <Select name="status" isRequired defaultValue={imovel?.status ?? "DISPONIVEL"}>
+          <Label>Status</Label>
+          <Select.Trigger>
+            <Select.Value />
+            <Select.Indicator />
+          </Select.Trigger>
+          <Select.Popover>
+            <ListBox>
+              {STATUS_IMOVEL.map((s) => (
+                <ListBox.Item key={s} id={s} textValue={ROTULO_STATUS_IMOVEL[s]}>
+                  {ROTULO_STATUS_IMOVEL[s]}
+                  <ListBox.ItemIndicator />
+                </ListBox.Item>
+              ))}
+            </ListBox>
+          </Select.Popover>
+          <Description>Só imóveis disponíveis recebem ofertas. Ofertas e contratos também mudam o status.</Description>
+          <FieldError />
+        </Select>
 
         <div className="flex items-end pb-2">
           <Switch name="destaque" defaultSelected={imovel?.destaque ?? false}>

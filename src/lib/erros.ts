@@ -12,6 +12,8 @@ export function mensagemDeErro(error: unknown, acao: string): string {
   if (error instanceof ApiError) {
     if (error.status == null) return "Não foi possível conectar à API. Tente novamente em instantes.";
     const validacao = error.validacao;
+    // 409: o status atual do registro não permite a ação; a mensagem da API já explica.
+    if (validacao && error.status === 409) return Object.values(validacao).join(" ");
     if (validacao) return `Dados recusados pela API: ${Object.values(validacao).join(" ")}`;
     if (error.status === 403) return "Você não tem permissão para fazer isso.";
     if (error.status === 404) return "O registro não existe mais. Atualize a página.";
@@ -20,7 +22,7 @@ export function mensagemDeErro(error: unknown, acao: string): string {
 }
 
 /**
- * Erros de validação (`400 { campo: mensagem }`) distribuídos entre os campos do formulário.
+ * Erros de validação (`400`/`409 { campo: mensagem }`) distribuídos entre os campos do formulário.
  * Chave aninhada usa a raiz (`bairro.id` → `bairro`). O que não for campo do formulário
  * (`corpo`, `id`, campo que a tela não mostra) vai para `gerais`. `null` se não for um 400.
  */

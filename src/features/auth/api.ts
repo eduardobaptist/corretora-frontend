@@ -102,26 +102,54 @@ export async function exigirArea(area: Area): Promise<Usuario> {
 }
 
 /**
- * Chamada autenticada de admin (páginas e Server Actions): confirma o papel na API, injeta o
+ * Chamada autenticada de uma área (páginas e Server Actions): confirma o papel na API, injeta o
  * header Bearer e trata 401 (token expirou no meio do caminho) mandando para o login.
- * `usuario` é o admin logado (para regras como "não excluir a si mesmo").
+ * `usuario` é o usuário logado (para regras como "não excluir a si mesmo").
  */
-export async function comoAdmin<T>(
+async function comoArea<T>(
+  area: Area,
   fn: (auth: HeadersInit, usuario: Usuario) => Promise<T>,
 ): Promise<T> {
-  const usuario = await exigirArea("admin");
+  const usuario = await exigirArea(area);
   const sessao = await lerSessao();
-  if (!sessao) redirect(urlLogin({ next: AREA_HREF.admin }));
+  if (!sessao) redirect(urlLogin({ next: AREA_HREF[area] }));
 
   try {
     return await fn(bearer(sessao.token), usuario);
   } catch (error) {
     if (error instanceof ApiError && error.status === 401) {
-      redirect(urlLogin({ motivo: "expirado", next: AREA_HREF.admin }));
+      redirect(urlLogin({ motivo: "expirado", next: AREA_HREF[area] }));
     }
     throw error;
   }
 }
+
+/** Chamada autenticada de admin (ver `comoArea`). */
+export function comoAdmin<T>(fn: (auth: HeadersInit, usuario: Usuario) => Promise<T>): Promise<T> {
+  return comoArea("admin", fn);
+}
+
+/** Chamada autenticada de cliente: favoritos, ofertas e contratos do próprio usuário. */
+export function comoCliente<T>(fn: (auth: HeadersInit, usuario: Usuario) => Promise<T>): Promise<T> {
+  return comoArea("cliente", fn);
+}
+
+/**
+ * Quem está vendo uma tela pública (vitrine, detalhe), só pelo cookie (otimista, sem chamar a
+ * API): decide se mostra favoritar/fazer oferta. As ações conferem o papel de verdade.
+ * Deduplicado por request; chame dentro de <Suspense> (lê cookie).
+ */
+export type Visitante =
+  | { tipo: "anonimo" }
+  | { tipo: "admin" }
+  | { tipo: "cliente"; auth: HeadersInit };
+
+export const visitanteAtual = cache(async (): Promise<Visitante> => {
+  const sessao = await lerSessao();
+  if (!sessao) return { tipo: "anonimo" };
+  if (sessao.role === "ADMIN") return { tipo: "admin" };
+  return { tipo: "cliente", auth: bearer(sessao.token) };
+});
 
 function urlLogin(params: { motivo?: string; next?: string }) {
   const qs = new URLSearchParams();

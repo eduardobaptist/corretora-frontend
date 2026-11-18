@@ -9,7 +9,7 @@ import { listarTodosTiposImovel } from "@/features/tipos-imoveis/api";
 import { ApiError } from "@/lib/api";
 import { normalize } from "@/lib/format";
 import { buscarImovel, listarTodosImoveis } from "../../api";
-import { ADMIN_IMOVEIS, SUGESTOES_FINALIDADE, SUGESTOES_STATUS } from "../types";
+import { ADMIN_IMOVEIS, SUGESTOES_FINALIDADE } from "../types";
 import { ImovelForm, type ImovelFormProps } from "./imovel-form";
 
 /** Sugestões padrão + valores já usados nos cadastros, sem repetir (ignora acento/maiúscula). */
@@ -32,7 +32,7 @@ export async function ImovelFormSection({ params }: { params?: Promise<{ id: str
     const [imovel, [tipos, bairros], todos] = await Promise.all([
       id ? buscarImovel(id) : null,
       comoAdmin((auth) => Promise.all([listarTodosTiposImovel(auth), listarTodosBairros(auth)])),
-      // Só para sugerir finalidade/status: se falhar, ficam as sugestões padrão.
+      // Só para sugerir finalidade: se falhar, ficam as sugestões padrão.
       listarTodosImoveis().catch(() => []),
     ]);
     if (id && !imovel) notFound();
@@ -42,7 +42,6 @@ export async function ImovelFormSection({ params }: { params?: Promise<{ id: str
       bairros,
       sugestoes: {
         finalidade: unir(SUGESTOES_FINALIDADE, todos.map((i) => i.finalidade ?? "")),
-        status: unir(SUGESTOES_STATUS, todos.map((i) => i.status ?? "")),
       },
     };
   } catch (error) {

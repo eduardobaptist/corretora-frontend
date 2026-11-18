@@ -5,6 +5,26 @@ import type { TipoImovel } from "@/features/tipos-imoveis/types";
 
 export type { Bairro, TipoImovel };
 
+/**
+ * Schema `StatusImovel`. Só `DISPONIVEL` recebe ofertas. Muda sozinho com o fluxo de ofertas:
+ * oferta aceita → `RESERVADO`; contrato assinado → `ALUGADO`/`VENDIDO`; contrato cancelado →
+ * `DISPONIVEL`. O admin também pode trocar no cadastro.
+ */
+export type StatusImovel = "DISPONIVEL" | "RESERVADO" | "ALUGADO" | "VENDIDO";
+
+export const STATUS_IMOVEL: readonly StatusImovel[] = ["DISPONIVEL", "RESERVADO", "ALUGADO", "VENDIDO"];
+
+export const ROTULO_STATUS_IMOVEL: Record<StatusImovel, string> = {
+  DISPONIVEL: "Disponível",
+  RESERVADO: "Reservado",
+  ALUGADO: "Alugado",
+  VENDIDO: "Vendido",
+};
+
+export function statusImovelValido(valor: string): StatusImovel | null {
+  return (STATUS_IMOVEL as readonly string[]).includes(valor) ? (valor as StatusImovel) : null;
+}
+
 export interface Imovel {
   id: number;
   titulo: string;
@@ -12,7 +32,7 @@ export interface Imovel {
   precoVenda: number | null;
   precoAluguel: number | null;
   finalidade: string;
-  status: string;
+  status: StatusImovel;
   dormitorios: number | null;
   banheiros: number | null;
   garagem: number | null;

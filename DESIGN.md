@@ -209,16 +209,47 @@ e `aria-current`.
 - `variant="soft"`: status e características.
 - `color="accent" variant="primary"` + `StarFill`: "Destaque". Com ícone, use `Chip.Label`
   para o texto.
-- **Status → cor** (mapa `STATUS_COLOR`, comparação em minúsculas):
+- **Status do imóvel → cor** (`StatusChip`, enum `StatusImovel`, texto de `ROTULO_STATUS_IMOVEL`):
 
 | Status | `color` |
 |---|---|
-| disponivel / disponível | `success` |
-| reservado | `warning` |
-| vendido, alugado | `danger` |
-| qualquer outro | `default` |
+| `DISPONIVEL` | `success` |
+| `RESERVADO` | `warning` |
+| `VENDIDO`, `ALUGADO` | `danger` |
 
 - Listas longas: mostrar no máximo **4** e um chip `+N` com o restante.
+- **Oferta → cor** (`OfertaStatusChip`): pendente `accent` (pede ação do admin), em espera `warning`,
+  aceita `success`, recusada `danger`, cancelada `default`.
+- **Contrato → cor** (`ContratoStatusChip`): aguardando assinatura `warning`, assinado `success`,
+  cancelado `default`.
+- Negócio da oferta/contrato em `Chip secondary` ("Venda"/"Aluguel"); valor com `ValorOferta`
+  (`/mês` em `text-muted` no aluguel).
+
+### Favorito: `favorito-botao.tsx`
+
+- No card: `Button isIconOnly size="sm" variant="secondary" rounded-full` no canto superior direito da
+  foto (ao lado do chip "Destaque"), com `relative z-10` para ficar acima do link esticado. Tooltip
+  "Salvar nos favoritos"/"Remover dos favoritos"; `aria-pressed`.
+- No detalhe: `Button variant="secondary"` ao lado do título, "Favoritar"/"Favoritado".
+- Ícone `Heart`; favoritado `HeartFill text-danger` (o vermelho é a convenção do coração).
+- Muda na hora (otimista); `toast.success`/`toast.danger` com o resultado. Visitante: o mesmo visual,
+  como link para o login.
+
+### Oferta no detalhe: `oferta-bloco.tsx`
+
+Bloco "Quer negociar?" no topo do card lateral (acima do contato, separado por `Separator`), com
+`Button primary fullWidth` "Fazer uma oferta" (`CircleDollar`), **só com o imóvel disponível**. Fora disso,
+o cliente vê o aviso `rounded-xl bg-surface-secondary p-3 text-sm text-muted` "Este imóvel está reservado e
+não recebe ofertas no momento." e o visitante não vê o bloco. Com oferta em aberto, no lugar do botão:
+caixa `rounded-xl bg-surface-secondary p-3` com valor, status e link "Acompanhar em Minhas ofertas".
+O formulário é um `FormularioModal` (negócio em `ToggleButtonGroup`, valor em `NumberField` BRL com o
+preço anunciado na `Description`, mensagem opcional), botão "Enviar oferta" com `PaperPlane`.
+
+### PDF: `pdf-visualizador.tsx`
+
+`Modal size="lg"` alargado (`sm:max-w-5xl`) com `iframe h-[70dvh] rounded-lg border`. Rodapé: à
+esquerda "Abrir em nova aba" e "Baixar" (`tertiary`, sempre visíveis: celular costuma não renderizar
+PDF em iframe); à direita "Fechar" e a ação do contexto (ex.: `primary` "Assinar contrato").
 
 ### Busca principal: `imoveis-search.tsx`
 
@@ -259,6 +290,69 @@ HeroUI `Pagination`: resumo "Mostrando 13–24 de 57" à esquerda e controles à
 (empilham no celular). Sempre a primeira página, a última e as vizinhas da atual, com `…` entre
 elas. "Anterior"/"Próxima" só com ícone no celular. Some quando há 1 página. Trocar de página
 rola para o topo; filtros não rolam.
+
+### Painel e gráficos: `features/painel/components/`
+
+```
+[🏠 Imóveis disponíveis 24 de 31 ▬▬▬▬▬▬░░]  [$ Ofertas pendentes 7  (Pede ação)]  [📄 Aguardando assinatura 2]
+┌ Imóveis por bairro ─────────────── 31 ┐  ┌ Ofertas por situação ──────── 23 ┐
+│ Centro      ███████████████ 9         │  │  ▇    ▅    ▆    ▇    ▁          │
+│ …                                     │  │ Pend. Esp. Ac. Rec. Canc.       │
+└───────────────────────────────────────┘  │                                 │
+┌ Imóveis por finalidade ────────── 31 ┐  │ [Em aberto | Decididas | Aceite] │
+│ Residencial ███████████ 22 · 71%      │  │                                 │
+└───────────────────────────────────────┘  └─────────────────────────────────┘
+```
+
+- **Layout**: indicadores em linha de 3 (`@2xl:grid-cols-3`). Abaixo, `@4xl:grid-cols-[1.2fr_1fr]`:
+  à esquerda os gráficos de imóveis empilhados (bairro, finalidade); à direita "Ofertas por
+  situação" na altura toda (`preencher`: o gráfico de colunas cresce com o card). No celular, tudo
+  numa coluna.
+- **Indicador** (`Indicador`): `Card p-0` com corpo `p-5` e rodapé-link separado por `border-t`
+  ("Ver …" + `ArrowRight text-accent`, hover `bg-surface-secondary`). Ícone `size-5` num quadrado
+  `size-10 rounded-xl bg-accent/15 text-accent`; rótulo `text-sm text-muted`; número `text-4xl
+  font-semibold` com complemento menor ao lado ("de 31", "contratos"); apoio `text-sm text-muted`
+  com contexto (reservados/vendidos, em espera, assinados). Opcional: medidor fino (`role="meter"`,
+  `h-1.5`, trilho `bg-accent/15`, preenchimento `bg-grafico`) e chip `warning soft` "Pede ação".
+- **Gráfico** (`GraficoBarras`, Recharts): **uma série**, sem legenda (o título diz o que é).
+  - Cabeçalho: ícone no mesmo quadrado do indicador (`size-9`), título + descrição e, à direita, o
+    total (`text-2xl font-semibold` + unidade `text-xs text-muted`). `rodape` opcional (resumo em
+    `grid-cols-3 divide-x rounded-xl bg-surface-secondary`).
+  - `forma="barras"` (horizontais, padrão): nomes longos ou muitas categorias; nome no eixo em uma
+    linha, cortado com "…" (`TickNome`; o nome inteiro vai no tooltip). `forma="colunas"`: poucas
+    categorias de nome curto (situação da oferta), com a linha de base. **Colunas viram barras
+    horizontais quando o card tem menos de 24rem** (container query): cinco rótulos não cabem.
+  - Barra sobre um **trilho** `--surface-secondary` que vai até o maior valor (`background` do
+    `Bar`). Sem eixo de valores nem grade: o valor de cada barra fica na ponta (`--foreground`,
+    `font-medium`, numa linha só via `LabelList` com `content` próprio). Parte do todo:
+    `comPercentual` → "22 · 71%".
+  - Barra de no máximo 24px, base quadrada e ponta arredondada (4px), mínimo 2px quando > 0;
+    hover esmaece a barra (`activeBar`).
+  - **Uma cor por barra** (`cor` do `ItemGrafico`, desenhada pelo `shape` do `Bar`), da paleta
+    categórica `--grafico-1…8` + `--grafico-neutro` (`globals.css`, claro e escuro, validados com o
+    validador de paletas do skill de dataviz). Regras:
+    - bairros e finalidade: as cores seguem a **posição na tela**, na ordem 1→8 (a ordem validada
+      para vizinhos), via `colorir()` em `painel/api.ts`. Com barras ordenadas por tamanho, cor por
+      item poria pares parecidos lado a lado; e aqui nenhum item aparece em outro gráfico ou filtro;
+    - situação da oferta (ordem fixa): cor com sentido, pendente azul (1), em espera amarelo (4),
+      aceita aqua (3), recusada vermelho (8), cancelada neutro. Verde ao lado do amarelo falhou no
+      escuro (daltonismo), por isso aceita é aqua;
+    - "Outros", "Sem bairro", "Não informada" e "Cancelada": `--grafico-neutro` (não gastam cor);
+    - amarelo, aqua e magenta ficam abaixo de 3:1 no claro: o valor escrito em cada barra e a
+      tabela `sr-only` são obrigatórios, não enfeite. Nome e valor sempre visíveis: a cor nunca é
+      o único jeito de identificar a barra;
+    - sem `cor`, a barra usa `--color-grafico` (`chart-1`/`chart-2`), que também pinta o medidor
+      do indicador. Texto nunca na cor da barra (o tooltip tem um traço da cor como chave).
+  - Tooltip próprio (`bg-surface border shadow-lg rounded-xl`): valor em destaque, "% do total · nome"
+    e "Clique para ver a lista" quando a barra leva à lista filtrada.
+  - O SVG fica numa caixa de altura definida com o gráfico em `absolute inset-0` (o Recharts mede
+    um tamanho estável). Sem animação (o painel rerenderiza a cada `refresh()`).
+  - O SVG é `aria-hidden`; uma `<table className="sr-only">` traz os mesmos números.
+  - Ordem: do maior para o menor; categorias com ordem natural (situação da oferta) mantêm o fluxo.
+    Mais de 8 categorias: as 7 maiores + "Outros".
+  - Vazio: caixa tracejada com uma frase; skeleton imita cards, barras e colunas.
+- `PainelConteudo({ dados })` renderiza o painel sem buscar nada (útil para conferir o visual com
+  dados de exemplo); `PainelSection` busca e trata erro.
 
 ### Sidebar: `area-sidebar.tsx`
 
@@ -336,15 +430,20 @@ Mostrando 1–20 de 57                         ‹ 1 2 3 ›                ← 
   UF, CEP inicial + final). Rodapé: `tertiary` "Cancelar" + `primary` com `FloppyDisk`
   ("Cadastrar …" / "Salvar alterações", "Salvando…" com `isPending`). Erro geral em `Alert danger`
   no fim do corpo. Opcional se diz no rótulo ("Descrição (opcional)") ou na descrição do modal.
+- **Filtro de status** (ofertas, contratos): `FiltroSelect` "Situação" (`w-full sm:w-52`) à esquerda da
+  contagem, ligado a `?status=`; vazio com filtro oferece "Ver todas/todos".
+- **Ação principal de linha** que o usuário precisa achar (cliente: "Ler e assinar") vira `Button size="sm"
+  primary` com texto em vez de `AcaoIcone`.
 - **Formulário longo em página** (imóvel): `max-w-4xl`, um `Card p-5 sm:p-6` por seção (Anúncio,
   Valores, Características, Localização) com `Card.Title text-base` + `Card.Description`, campos em
   `grid sm:grid-cols-2`. Link "← Imóveis" acima do título. Botões no fim, à direita
   (`flex-col-reverse` no celular: o principal fica em cima).
 - **Campos**: dinheiro e números em `NumberField` (`formatOptions` BRL; área com "(m²)" no rótulo);
-  relação em `Select` com opção neutra "Sem …"; texto livre com sugestões (finalidade, status) em
+  relação em `Select` com opção neutra "Sem …"; enum (status do imóvel) em `Select`; texto livre com sugestões (finalidade) em
   `ComboBox allowsCustomValue`; liga/desliga em `Switch`; lista separada por vírgula em `TextArea`
   com `Description` explicando. Senha com mostrar/ocultar, como no login.
-- **Confirmação** (`ConfirmarExclusao` / `ConfirmarAcao`): `AlertDialog size="sm"`, ícone `danger`
+- **Confirmação** (`ConfirmarExclusao` / `ConfirmarAcao`; quando a ação já é "Cancelar …", o botão
+  de desistir vira "Voltar" com `rotuloFechar`): `AlertDialog size="sm"`, ícone `danger`
   (excluir) ou `accent` (mudança sensível, ex.: trocar perfil). Título em pergunta ("Excluir
   bairro?"), corpo com o nome em `<strong className="text-foreground">`, a consequência e "Isso não
   pode ser desfeito.". Botões "Cancelar" (`tertiary`) e o da ação (`danger`/`primary`). Se a API

@@ -1,4 +1,3 @@
-import { EmptyState } from "@heroui/react";
 import { Suspense } from "react";
 import type { Area } from "../types";
 import { AreaSidebar } from "./area-sidebar";
@@ -34,18 +33,5 @@ export function AreaCabecalho({ titulo, descricao }: { titulo: string; descricao
       <h1 className="text-2xl font-bold tracking-tight">{titulo}</h1>
       <p className="text-sm text-muted">{descricao}</p>
     </header>
-  );
-}
-
-/** Página ainda sem conteúdo: título + "em breve". */
-export function AreaPagina({ titulo, descricao }: { titulo: string; descricao: string }) {
-  return (
-    <>
-      <AreaCabecalho titulo={titulo} descricao={descricao} />
-      <EmptyState className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border py-16 text-center">
-        <p className="font-medium">Em breve</p>
-        <p className="text-sm text-muted">Esta seção ainda está sendo construída.</p>
-      </EmptyState>
-    </>
   );
 }

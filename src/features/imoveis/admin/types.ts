@@ -2,6 +2,8 @@
 // O PUT substitui tudo: campo omitido vira `null`, então o formulário manda todos.
 // `fotos` não faz parte (é ignorado no POST/PUT).
 
+import type { StatusImovel } from "../types";
+
 /** Rota da lista de imóveis do admin (novo: `/novo`, edição: `/{id}`). */
 export const ADMIN_IMOVEIS = "/admin/imoveis";
 
@@ -15,7 +17,7 @@ export interface ImovelInput {
   precoVenda: number | null;
   precoAluguel: number | null;
   finalidade: string;
-  status: string;
+  status: StatusImovel;
   dormitorios: number | null;
   banheiros: number | null;
   garagem: number | null;
@@ -33,7 +35,6 @@ export interface ImovelInput {
 
 export type ImovelCampo = keyof ImovelInput;
 
-// `finalidade` e `status` são texto livre na API: o formulário sugere estes valores
-// (mais os já usados nos cadastros), mas aceita qualquer texto.
+// `finalidade` é texto livre na API: o formulário sugere estes valores (mais os já usados nos
+// cadastros), mas aceita qualquer texto. `status` é enum (`StatusImovel`): vai num Select.
 export const SUGESTOES_FINALIDADE = ["Residencial", "Comercial", "Rural"];
-export const SUGESTOES_STATUS = ["Disponível", "Reservado", "Vendido", "Alugado"];

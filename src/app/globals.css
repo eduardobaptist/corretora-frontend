@@ -10,6 +10,47 @@
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
 
+/*
+ * Barras dos gráficos (série única, painel do admin). Validado com o validador de paletas:
+ * chart-1 passa no claro (contraste ≥ 3:1 sobre a surface branca); no escuro o accent (chart-3) fica
+ * claro demais para a faixa de luminosidade, então usa chart-2. Use `bg-grafico`.
+ */
+/*
+ * Paleta categórica dos gráficos (uma cor por barra), a paleta de referência do skill de dataviz,
+ * validada com o validador nos dois modos: a ordem 1→8 é o que garante que vizinhos se distinguem
+ * (inclusive com daltonismo), então atribua as cores nessa ordem às barras como aparecem na tela.
+ * Amarelo, aqua e magenta ficam abaixo de 3:1 no claro: por isso todo gráfico tem o valor escrito
+ * em cada barra e a tabela para leitor de tela. O escuro usa os mesmos matizes ajustados à surface.
+ * `--grafico-neutro` (cinza, ≥ 3:1 nos dois modos) é para "Outros", "Sem bairro", "Cancelada".
+ */
+:root {
+  --grafico-barra: var(--chart-1);
+  --grafico-1: #2a78d6; /* azul */
+  --grafico-2: #eb6834; /* laranja */
+  --grafico-3: #1baf7a; /* aqua */
+  --grafico-4: #eda100; /* amarelo */
+  --grafico-5: #e87ba4; /* magenta */
+  --grafico-6: #008300; /* verde */
+  --grafico-7: #6250d6; /* violeta */
+  --grafico-8: #e34948; /* vermelho */
+  --grafico-neutro: #8a8985;
+}
+:root.dark,
+:root[data-theme="dark"] {
+  --grafico-barra: var(--chart-2);
+  --grafico-1: #3987e5;
+  --grafico-2: #d95926;
+  --grafico-3: #199e70;
+  --grafico-4: #c98500;
+  --grafico-5: #d55181;
+  --grafico-6: #0ca30c;
+  --grafico-7: #9085e9;
+  --grafico-8: #e66767;
+}
+@theme inline {
+  --color-grafico: var(--grafico-barra);
+}
+
 /* Distância do topo para elementos sticky. O site tem header fixo; as áreas logadas não. */
 :root {
   --topo-fixo: 6rem;

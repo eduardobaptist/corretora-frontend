@@ -1,16 +1,20 @@
 import { Alert, Breadcrumbs, Card, Chip, Separator, Skeleton } from "@heroui/react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { Suspense } from "react";
 import { ArrowLeft, GeoPin, StarFill } from "@/components/icons";
+import { FavoritoDetalhe } from "@/features/favoritos/components/favorito-detalhe";
+import { OfertaBloco } from "@/features/ofertas/components/oferta-bloco";
 import { ApiError } from "@/lib/api";
 import { buscarImovel } from "../api";
-import type { Imovel } from "../types";
+import { ROTULO_STATUS_IMOVEL, type Imovel } from "../types";
 import { formatEndereco, parseCaracteristicas } from "../utils";
 import { ContatoImovel } from "./contato-form";
 import { ImovelAtributos } from "./imovel-atributos";
 import { ImovelGaleria } from "./imovel-galeria";
 import { Preco } from "./preco";
 import { StatusChip } from "./status-chip";
+import { hrefImovel } from "../vitrine-params";
 
 export async function ImovelDetalhe({
   params,
@@ -39,6 +43,8 @@ export async function ImovelDetalhe({
   }
 
   if (!imovel) notFound();
+  /** Este detalhe (volta do login para cá). */
+  const aqui = hrefImovel(base, imovel.id);
 
   const caracteristicas = parseCaracteristicas(imovel);
   const temPreco = imovel.precoVenda != null || imovel.precoAluguel != null;
@@ -46,7 +52,7 @@ export async function ImovelDetalhe({
     ["Código", String(imovel.id)],
     ["Tipo", imovel.tipoImovel?.nome ?? null],
     ["Finalidade", imovel.finalidade],
-    ["Situação", imovel.status],
+    ["Situação", ROTULO_STATUS_IMOVEL[imovel.status]],
     ["Complemento", imovel.complemento],
     ["CEP", imovel.cep],
   ];
@@ -90,7 +96,13 @@ export async function ImovelDetalhe({
                 </Chip>
               )}
             </div>
-            <h1 className="text-2xl font-bold tracking-tight text-balance sm:text-3xl">{imovel.titulo}</h1>
+            <div className="flex flex-col items-start gap-3 sm:flex-row sm:justify-between">
+              <h1 className="text-2xl font-bold tracking-tight text-balance sm:text-3xl">{imovel.titulo}</h1>
+              {/* Lê a sessão: não segura o resto do detalhe */}
+              <Suspense fallback={null}>
+                <FavoritoDetalhe imovelId={imovel.id} titulo={imovel.titulo} href={aqui} />
+              </Suspense>
+            </div>
             <p className="flex items-center gap-1.5 text-muted">
               <GeoPin className="size-4 shrink-0" aria-hidden />
               {formatEndereco(imovel)}
@@ -144,7 +156,7 @@ export async function ImovelDetalhe({
         </div>
 
         <aside
-          aria-label="Preço e contato"
+          aria-label="Preço, oferta e contato"
           className="@4xl/detalhe:sticky @4xl/detalhe:top-(--topo-fixo) @4xl/detalhe:max-h-[calc(100dvh-var(--topo-fixo)-1rem)] @4xl/detalhe:overflow-y-auto"
         >
           <Card className="gap-5">
@@ -157,6 +169,9 @@ export async function ImovelDetalhe({
                 <Separator />
               </div>
             )}
+            <Suspense fallback={null}>
+              <OfertaBloco imovel={imovel} href={aqui} />
+            </Suspense>
             <div className="flex flex-col gap-1">
               <h2 className="font-semibold">Gostou deste imóvel?</h2>
               <p className="text-sm text-muted">Fale com um corretor, sem compromisso.</p>

@@ -17,6 +17,8 @@ interface ConfirmarAcaoProps {
   icone?: React.ReactNode;
   /** `danger` para o que não tem volta (excluir); `accent` para mudanças sensíveis (perfil). */
   status?: "danger" | "accent";
+  /** Botão de desistir. Troque quando a ação já se chama "Cancelar …" (ex.: "Voltar"). */
+  rotuloFechar?: string;
 }
 
 /**
@@ -33,6 +35,7 @@ export function ConfirmarAcao({
   rotuloPendente,
   icone,
   status = "danger",
+  rotuloFechar = "Cancelar",
 }: ConfirmarAcaoProps) {
   const [erro, setErro] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -78,7 +81,7 @@ export function ConfirmarAcao({
             </AlertDialog.Body>
             <AlertDialog.Footer>
               <Button variant="tertiary" onPress={fechar} isDisabled={pending}>
-                Cancelar
+                {rotuloFechar}
               </Button>
               <Button variant={status === "danger" ? "danger" : "primary"} onPress={confirmar} isPending={pending}>
                 {!pending && icone}

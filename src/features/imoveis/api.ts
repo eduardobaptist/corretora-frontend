@@ -32,7 +32,7 @@ interface ListarImoveisQuery {
 }
 
 /** Preço 0 no cadastro significa "não se aplica": trata como `null` para não exibir "R$ 0". */
-function normalizar(imovel: Imovel): Imovel {
+export function normalizar(imovel: Imovel): Imovel {
   return {
     ...imovel,
     precoVenda: imovel.precoVenda && imovel.precoVenda > 0 ? imovel.precoVenda : null,

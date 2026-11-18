@@ -18,17 +18,19 @@ use o placeholder `APP_NAME` em `src/lib/config.ts` e nunca escreva um nome fixo
 - `cacheComponents` está ligado (padrão do Next 16): fetch sem cache precisa ficar dentro de
   `<Suspense>` com fallback de skeleton. É o que dá o PPR da home (casca estática + streaming).
 - Leve de propósito: sem axios, sem React Query, sem store global. Adicione só se houver
-  necessidade real (ex.: React Query quando surgirem mutações no client).
+  necessidade real (ex.: React Query quando surgirem mutações no client). Gráficos: **Recharts**
+  (SVG, aceita `var(--token)` nas cores, então o dark mode vem de graça; Chart.js desenha em canvas).
 
 ### Estrutura
 
 ```
 src/
   app/                 rotas (finas: montam features dentro de Suspense)
+  app/api/contratos/   Route Handlers do PDF do contrato (repassam o token do cookie)
   features/<dominio>/  types.ts (espelha o JSON da API), api.ts (server-only),
                        actions.ts (Server Actions), utils.ts, components/
                        domínios: imoveis (+ imoveis/admin), bairros, tipos-imoveis,
-                       usuarios, auth
+                       usuarios, auth, favoritos, ofertas, contratos
   components/          compartilhados entre features: icons/, paginacao.tsx,
                        admin/ (peças de CRUD, ver "Cadastros do admin")
   lib/                 api.ts (cliente HTTP), format.ts (moeda/área pt-BR), config.ts,
@@ -80,8 +82,9 @@ Pontos que pegam de surpresa:
   repetido. Rotas protegidas usam
   `Authorization: Bearer`. O payload traz `id`, `nome`, `roles`. 401/403 vêm com corpo vazio.
 - Público: `POST /auth/login`, `POST /auth/cadastro`, `GET /imoveis`, `GET /imoveis/{id}`, `POST /imoveis/sabermais/{id}`
-  e `GET /uploads/**`. `/bairros` e `/tipos-imoveis` exigem login; escrita em imóveis, `/fotos`
-  e `/user` exigem ADMIN.
+  e `GET /uploads/**`. `/bairros`, `/tipos-imoveis` e `/favoritos` exigem login; escrita em imóveis, `/fotos`,
+  `/user`, `GET /ofertas`, `PATCH /ofertas/{id}/status` e a escrita em `/contratos` (criar, prévia, cancelar)
+  exigem ADMIN. Oferta/contrato de outro usuário → `404` (como se não existisse).
 - Listagens são **paginadas**: `page` (0-based), `size` (máx. 100), `sort=campo,dir` (repetível;
   relação com ponto: `bairro.nome`). Resposta `{ content, page: { size, number, totalElements,
   totalPages } }` (`Page<T>` em `src/lib/api.ts`). `sort` com campo inexistente → 500.
@@ -91,6 +94,9 @@ Pontos que pegam de surpresa:
   `PUT` → `204` e **substitui tudo** (campo omitido vira `null`). Relações vão como `{ "id": n }`.
 - `GET /bairros/{id}` e `/tipos-imoveis/{id}` inexistente → `200` com corpo vazio (não 404).
 - `GET /user/` exige a barra final; `POST /user` é sem barra.
+- **Conflito de estado → `409` no mesmo formato `{ campo: mensagem }`** (ex.: aceitar oferta cancelada,
+  assinar contrato já assinado). `ApiError.validacao` entende 400 e 409; `mensagemDeErro` mostra o texto
+  do 409 como veio. (O 409 de e-mail repetido ainda é text/plain.)
 - **Validação → `400` com objeto plano `{ campo: mensagem }`** (uma por campo; aninhado com ponto:
   `bairro.id`; JSON malformado → `corpo`). As regras (obrigatório, `maxLength`, `pattern`, mínimos,
   dígitos de decimais) estão nos schemas `*Input`/`*Request` do yaml. Strings só com espaços contam
@@ -106,7 +112,8 @@ Pontos que pegam de surpresa:
   essas regras ficam no front (ver "Cadastros do admin").
 
 Cliente HTTP (`src/lib/api.ts`): `apiGet`, `apiGetOuNull` (para o 200 com corpo vazio), `apiPost`,
-`apiPut`, `apiDelete`, `queryPagina(page, size, sort[])`, `listarTodasPaginas(buscar)` (varre as
+`apiPut`, `apiDelete`, `apiPatchJson`/`apiPostAcao` (ações de status, devolvem o objeto), `apiPostForm`
+(multipart), `apiResposta` (`Response` crua, para PDF), `queryPagina(page, size, sort[])`, `listarTodasPaginas(buscar)` (varre as
 páginas de 100) e `paginarLocal(itens, pagina, size)`. Erros viram `ApiError` (`status`, `body`, e
 `validacao`: o mapa `{ campo: mensagem }` de um 400, ou `null`).
 
@@ -155,9 +162,12 @@ páginas de 100) e `paginarLocal(itens, pagina, size)`. Erros viram `ApiError` (
 - `api.ts`: `usuarioAtual()` confirma a sessão em `GET /auth/me` (com `bearer(token)` de
   `lib/api.ts`). Sem sessão → `/login?next=`; 401/404 → `/login?motivo=expirado&next=`.
   Use-o (ou `lerSessao()`) só **dentro de `<Suspense>`**: lê cookie.
-- Chamadas autenticadas de admin: **`comoAdmin((auth, usuario) => ...)`** (`api.ts`). Confirma o
-  papel (`exigirArea("admin")`), passa o header Bearer e trata 401 mandando para
-  `/login?motivo=expirado`. `usuario` é o admin logado (regra "não excluir a si mesmo").
+- Chamadas autenticadas: **`comoAdmin((auth, usuario) => ...)`** e **`comoCliente(...)`** (`api.ts`).
+  Confirmam o papel (`exigirArea`), passam o header Bearer e tratam 401 mandando para
+  `/login?motivo=expirado`. `usuario` é o usuário logado (regra "não excluir a si mesmo").
+- Telas públicas que mudam para quem está logado (coração, "fazer oferta"): **`visitanteAtual()`**
+  (`anonimo` | `admin` | `cliente` com `auth`), só pelo cookie, deduplicado por request. Só decide o
+  que mostrar; as actions conferem o papel com `comoCliente`. Use dentro de `<Suspense>`.
 - **Papel trocado depois do login**: o JWT do cookie guarda o papel antigo (o proxy decide por ele),
   mas `/auth/me` traz o novo. `exigirArea` detecta a divergência e manda para `/login?motivo=perfil`
   (senão proxy e página ficariam em loop de redirecionamento). Um novo login grava o token certo.
@@ -203,9 +213,10 @@ Padrão de toda tela de cadastro (`/admin/bairros`, `/admin/tipos-imoveis`, `/ad
 
 Particularidades:
 
-- **Imóveis**: lista paginada na API (mais recentes primeiro), com miniatura da capa. `finalidade` e
-  `status` são texto livre: `ComboBox allowsCustomValue` sugere os valores padrão (`SUGESTOES_*` em
-  `imoveis/admin/types.ts`) mais os já usados. Tipo e bairro em `Select` (opção "Sem …" = `null`).
+- **Imóveis**: lista paginada na API (mais recentes primeiro), com miniatura da capa. `finalidade` é
+  texto livre: `ComboBox allowsCustomValue` sugere os valores padrão (`SUGESTOES_FINALIDADE` em
+  `imoveis/admin/types.ts`) mais os já usados. `status` é **enum** (`StatusImovel`: `DISPONIVEL`,
+  `RESERVADO`, `ALUGADO`, `VENDIDO`, rótulos em `ROTULO_STATUS_IMOVEL`), num `Select` (texto livre → 400). Tipo e bairro em `Select` (opção "Sem …" = `null`).
   Preço `0`/vazio é gravado como `null`. Editar não mexe nas fotos.
 - **Bairros**: UF em `Select` (`UFS`), CEP normalizado para `00000-000` (`cepOuNull`), faixa validada.
 - **Usuários**: busca por nome ou e-mail **local** (a API não busca): com `?q=`,
@@ -214,6 +225,50 @@ Particularidades:
   nome/e-mail atuais (o PUT sempre os sobrescreve). **O admin não pode excluir a si mesmo nem trocar
   o próprio perfil**: botões desabilitados na linha "Você" e a mesma regra nas actions (a API não
   impede). Senha vazia na edição mantém a atual; 409 → erro no campo e-mail.
+
+### Favoritos, ofertas e contratos
+
+Fluxo da API (yaml, "Fluxo de oferta → contrato → assinatura"): cliente oferta → admin decide → admin cria
+o contrato da oferta aceita → cliente assina. **Só imóvel `DISPONIVEL` recebe oferta.** Algumas ações mudam
+o imóvel e as outras ofertas dele sozinhas (tabela no yaml):
+
+| Ação | Imóvel | Outras ofertas do imóvel |
+|---|---|---|
+| aceitar oferta | → `RESERVADO` | pendentes → em espera |
+| assinar contrato | → `ALUGADO`/`VENDIDO` | em aberto → recusadas |
+| cancelar contrato | `RESERVADO` → `DISPONIVEL` | em espera → pendentes; **a própria oferta → cancelada** |
+
+Por isso essas três actions chamam `updateTag(TAG_IMOVEIS)` (o status aparece na vitrine) além de
+`refresh()`. Contrato cancelado cancela a oferta: **não existe reenviar contrato**; para fechar negócio de
+novo, o admin aceita outra oferta.
+
+- **Favoritos** (`features/favoritos`): `PUT`/`DELETE /favoritos/{id}` (204, idempotentes) via
+  `alternarFavorito`; `FavoritoBotao` é otimista (`useOptimistic`) e a action faz `refresh()`. Aparece no
+  card (`acao` do `ImovelCard`, canto da foto) e no detalhe (`FavoritoDetalhe`). Cliente vê o estado
+  (vitrine: `idsFavoritos` varre `GET /favoritos`; detalhe: `GET /favoritos/{id}`); visitante vai ao
+  login com `?next=`; admin não vê. Falha da API só esconde o coração (`favoritosOuNull`).
+  `/cliente` (início da área) é a lista de favoritos.
+- **Ofertas** (`features/ofertas`): cliente oferta pelo card lateral do detalhe (`OfertaBloco` →
+  `OfertaBotao`, modal), só com o imóvel disponível (senão, um aviso; visitante não vê nada). Os negócios oferecidos são os que o anúncio tem preço; o valor começa no preço
+  anunciado. Se já há oferta em aberto para o imóvel (`ofertaEmAbertoDoImovel` varre `/ofertas/minhas`
+  pendentes e em espera), mostra ela no lugar do botão. `/cliente/ofertas` lista e cancela (só
+  `PENDENTE`/`EM_ESPERA`). `/admin/ofertas` filtra por `?status=` **na API**, mostra detalhes/mensagem e
+  decide (aceitar, em espera só de pendente, recusar). "Aceitar" fica desabilitado com o imóvel fora de
+  `DISPONIVEL` (`ImovelResumo.status`, que aparece em chip na linha). Oferta aceita: "Criar contrato" ou, se já houver
+  contrato ativo (`contratoAtivoDaOferta`, buscado só para as aceitas da página), "Ver contrato".
+- **Contratos** (`features/contratos`): `/admin/ofertas/[id]/contrato` cria (abas "Gerar pelo modelo",
+  JSON, prazo/vencimento só no aluguel; e "Enviar PDF pronto", multipart). As regras ficam em
+  `validacao.ts`, compartilhado entre a action e o formulário. `/admin/contratos` lista (`?status=`),
+  baixa e cancela os não assinados (desistência: cancela a oferta também); `/cliente/contratos` lê e assina (o botão de assinar fica no rodapé do
+  visualizador e pede confirmação).
+- **PDF**: a API exige o Bearer, mas o token fica no cookie httpOnly e a API não tem CORS. Então o
+  navegador nunca chama a API: `GET /api/contratos/[id]/pdf` (`?baixar=1` força download) e
+  `POST /api/contratos/previa` são Route Handlers que repassam o token (`features/contratos/pdf.ts`).
+  O PDF salvo vai direto em `<iframe>`/`<a>` (`hrefPdf`); a prévia é `fetch` → `blob` →
+  `URL.createObjectURL`. Ambos abrem no `PdfVisualizador` (modal com "Abrir em nova aba" e "Baixar",
+  porque celular nem sempre mostra PDF em iframe).
+- **Upload de 10MB por Server Action**: `next.config.ts` sobe `serverActions.bodySizeLimit` e
+  `proxyClientMaxBodySize` para `11mb`; o formulário confere tipo/tamanho/nome antes de enviar.
 
 ## Telas
 
@@ -232,10 +287,16 @@ Particularidades:
   As rotas são finas e montam `VitrinePagina`/`ImovelPagina` (`features/imoveis/components/
   paginas.tsx`) com `base` = caminho da listagem; `hrefImovel(base, id)` gera o link do detalhe
   (site: `/imoveis/[id]`; áreas: `${base}/[id]`), e breadcrumbs/voltar usam o mesmo `base`.
-- `/admin/*` (Geral: Painel, Vitrine · Cadastros: Imóveis, Bairros, Tipos de imóvel, Usuários) e
-  `/cliente/*` (Início, Vitrine, Meu perfil): `AreaShell` = sidebar com as opções do papel + bloco de perfil (avatar, nome, e-mail e
+- `/admin/*` (Geral: Painel, Vitrine · Negócios: Ofertas, Contratos · Cadastros: Imóveis, Bairros,
+  Tipos de imóvel, Usuários) e `/cliente/*` (Favoritos, Vitrine, Minhas ofertas, Contratos): `AreaShell` = sidebar com as opções do papel + bloco de perfil (avatar, nome, e-mail e
   botão Sair; o chip "Admin" fica no topo, só na área admin). `noindex`. Cadastros do admin prontos
-  (ver acima); Painel e as páginas do cliente ainda "Em breve".
+  (ver acima). Não há "Meu perfil" por enquanto (os dados do cliente ficam no bloco de perfil).
+- **Painel do admin** (`/admin`, `features/painel`): três indicadores (imóveis disponíveis, ofertas
+  pendentes, contratos aguardando assinatura) e gráficos de barras de imóveis por bairro, ofertas por
+  situação e imóveis por finalidade. A API não tem estatística: contagens de ofertas/contratos vêm do
+  `totalElements` de uma página `size=1` filtrada por status; imóveis são agrupados sobre
+  `listarTodosImoveis` (em cache, invalidado por `TAG_IMOVEIS`). Gráficos com Recharts em
+  `GraficoBarras` (client).
 - Rotas: `app/(site)/` tem o `SiteHeader` (logo + "Entrar" ou avatar com atalho para a área);
   `app/admin` e `app/cliente` usam o `AreaShell`, sem o header do site.
 
